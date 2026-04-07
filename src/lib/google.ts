@@ -12,6 +12,12 @@ export const GOOGLE_BOOKING_SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
+export const GOOGLE_LOGIN_SCOPES = [
+  "openid",
+  "email",
+  "profile",
+].join(" ");
+
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 const GOOGLE_REQUIRED_SCOPES = [
@@ -110,6 +116,44 @@ export const requestGoogleBookingAccessToken = async (prompt: "" | "consent" = "
     const tokenClient = window.google?.accounts?.oauth2.initTokenClient({
       client_id: googleClientId,
       scope: GOOGLE_BOOKING_SCOPES,
+      callback: (response) => {
+        if (response.error) {
+          reject(new Error(response.error));
+          return;
+        }
+
+        if (!response.access_token) {
+          reject(new Error("O Google nao retornou um token de acesso.")); 
+          return;
+        }
+
+        resolve({
+          accessToken: response.access_token,
+          scope: response.scope,
+        });
+      },
+    });
+
+    if (!tokenClient) {
+      reject(new Error("Nao foi possivel iniciar o cliente OAuth do Google."));
+      return;
+    }
+
+    tokenClient.requestAccessToken({ prompt });
+  });
+};
+
+export const requestGoogleLoginAccessToken = async (prompt: "" | "consent" = "consent") => {
+  if (!googleClientId) {
+    throw new Error("O login Google nao esta configurado neste ambiente.");
+  }
+
+  await ensureGoogleIdentityScript();
+
+  return await new Promise<{ accessToken: string; scope?: string }>((resolve, reject) => {
+    const tokenClient = window.google?.accounts?.oauth2.initTokenClient({
+      client_id: googleClientId,
+      scope: GOOGLE_LOGIN_SCOPES,
       callback: (response) => {
         if (response.error) {
           reject(new Error(response.error));

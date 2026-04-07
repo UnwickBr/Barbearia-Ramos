@@ -13,7 +13,7 @@ type AuthDialogProps = {
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
-  const { connectGoogleServices } = useAuth();
+  const { loginWithGoogle } = useAuth();
   const [googleReady, setGoogleReady] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [startingLogin, setStartingLogin] = useState(false);
@@ -39,7 +39,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
 
     setStartingLogin(true);
     setGoogleError(null);
-    void connectGoogleServices(true)
+    void loginWithGoogle(true)
       .then(() => onOpenChange(false))
       .catch((error) => setGoogleError(error instanceof Error ? error.message : "Falha ao entrar com Google."))
       .finally(() => setStartingLogin(false));
@@ -57,7 +57,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
 
         <div className="rounded-lg border border-border bg-secondary/40 p-5">
           <p className="mb-4 text-sm text-muted-foreground">
-            Use sua conta Google para acessar reservas, adicionar o horario ao seu calendario e receber a confirmacao por e-mail.
+            Use sua conta Google para entrar e acessar suas reservas. As permissoes de calendario e e-mail so serao solicitadas quando voce usar esses recursos.
           </p>
 
           <Button type="button" className="w-full" onClick={handleGoogleLogin} disabled={!googleReady || startingLogin}>

@@ -4,6 +4,7 @@ import {
   clearStoredGoogleAccessToken,
   getStoredGoogleAccessToken,
   requestGoogleBookingAccessToken,
+  requestGoogleLoginAccessToken,
   storeGoogleAccessToken,
 } from "@/lib/google";
 import type { User } from "@/lib/types";
@@ -14,6 +15,7 @@ interface AuthContextType {
   loading: boolean;
   googleAccessToken: string | null;
   loginWithGoogleAccessToken: (accessToken: string, scopes?: string) => Promise<void>;
+  loginWithGoogle: (forceConsent?: boolean) => Promise<void>;
   connectGoogleServices: (forceConsent?: boolean) => Promise<string>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -62,6 +64,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
+  const loginWithGoogle = useCallback(async (forceConsent = false) => {
+    const response = await requestGoogleLoginAccessToken(forceConsent ? "consent" : "");
+    await loginWithGoogleAccessToken(response.accessToken, response.scope);
+  }, [loginWithGoogleAccessToken]);
+
   const connectGoogleServices = useCallback(async (forceConsent = false) => {
     const response = await requestGoogleBookingAccessToken(forceConsent ? "consent" : "");
     await loginWithGoogleAccessToken(response.accessToken, response.scope);
@@ -85,11 +92,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       googleAccessToken,
       loginWithGoogleAccessToken,
+      loginWithGoogle,
       connectGoogleServices,
       logout,
       refreshUser,
     }),
-    [connectGoogleServices, googleAccessToken, loading, loginWithGoogleAccessToken, user],
+    [connectGoogleServices, googleAccessToken, loading, loginWithGoogle, loginWithGoogleAccessToken, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
