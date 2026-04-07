@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sendJson } from "./_lib/http";
+import type { ApiRequest, ApiResponse } from "./_lib/types";
 
-export default async function handler(_req: VercelRequest, res: VercelResponse) {
+export default async function handler(_req: ApiRequest, res: ApiResponse) {
   const env = {
     hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
     hasSessionSecret: Boolean(process.env.SESSION_SECRET),

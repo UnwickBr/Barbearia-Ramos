@@ -1,7 +1,7 @@
-import type { VercelRequest } from "@vercel/node";
 import { verifySessionToken } from "./auth";
 import { sql } from "./db";
 import { getCookie } from "./http";
+import type { ApiRequest } from "./types";
 
 type DatabaseUser = {
   id: string;
@@ -27,7 +27,7 @@ export const mapUser = (user: DatabaseUser): AuthenticatedUser => ({
   createdAt: user.created_at,
 });
 
-export const getAuthenticatedUser = async (req: VercelRequest) => {
+export const getAuthenticatedUser = async (req: ApiRequest) => {
   const token = getCookie(req, "barbearia_ramos_session");
   const session = verifySessionToken(token);
 

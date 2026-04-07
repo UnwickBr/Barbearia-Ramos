@@ -1,8 +1,8 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
 import { buildAvatarUrl, createSessionToken, hashPassword } from "../_lib/auth";
 import { ensureSchema, sql } from "../_lib/db";
 import { parseJsonBody, sendJson, setCookie } from "../_lib/http";
+import type { ApiRequest, ApiResponse } from "../_lib/types";
 import { mapUser } from "../_lib/user";
 
 type RegisterBody = {
@@ -11,7 +11,7 @@ type RegisterBody = {
   password?: string;
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
     return sendJson(res, 405, { error: "Method not allowed." });
   }

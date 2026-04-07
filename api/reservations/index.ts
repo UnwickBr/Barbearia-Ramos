@@ -1,8 +1,8 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
 import { barbers, servicesById, timeSlots } from "../_lib/barbershop";
 import { ensureSchema, sql } from "../_lib/db";
 import { parseJsonBody, sendJson } from "../_lib/http";
+import type { ApiRequest, ApiResponse } from "../_lib/types";
 import { getAuthenticatedUser } from "../_lib/user";
 
 type ReservationBody = {
@@ -38,7 +38,7 @@ const mapReservation = (reservation: ReservationRow) => ({
   createdAt: reservation.created_at,
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
 
   const user = await getAuthenticatedUser(req);
