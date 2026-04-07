@@ -34,6 +34,7 @@ const getReservation = async (reservationId: string, userId: string, isAdmin: bo
   const rows = (await sql`
     SELECT
       id,
+      user_id,
       barber_user_id,
       service_id,
       service_name,
@@ -216,7 +217,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const body = await parseJsonBody<CancelReservationBody>(req);
     const cancellationReason = body.cancellationReason?.trim() || null;
 
-    if (user.isAdmin && !cancellationReason) {
+    if (user.isAdmin && existingReservation.user_id !== user.id && !cancellationReason) {
       return sendJson(res, 400, { error: "Informe a justificativa do cancelamento." });
     }
 
