@@ -267,36 +267,86 @@ const Agendamentos = () => {
       return;
     }
 
-    if (reservation.googleCalendarEventId && googleAccessToken) {
+    let response: { reservation: Reservation };
+    try {
+      response = await cancelReservation.mutateAsync(reservation.id);
+    } catch (error) {
+      toast({
+        title: "Nao foi possivel cancelar",
+        description: error instanceof Error ? error.message : "O sistema nao conseguiu atualizar o agendamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    void queryClient.invalidateQueries({ queryKey: ["availability"] });
+
+    if (reservation.googleCalendarEventId) {
       try {
-        await deleteGoogleCalendarEvent(googleAccessToken, reservation.googleCalendarEventId);
+        const activeAccessToken = await ensureGoogleIntegration();
+        await deleteGoogleCalendarEvent(activeAccessToken, reservation.googleCalendarEventId);
       } catch (error) {
-        toast({
-          title: "Reserva cancelada no site",
-          description: error instanceof Error ? error.message : "Nao foi possivel remover o evento do Google Calendar.",
-          variant: "destructive",
-        });
+        if (isGoogleAuthError(error)) {
+          try {
+            const activeAccessToken = await ensureGoogleIntegration(true);
+            await deleteGoogleCalendarEvent(activeAccessToken, reservation.googleCalendarEventId);
+          } catch (retryError) {
+            toast({
+              title: "Agendamento cancelado no site",
+              description: retryError instanceof Error ? retryError.message : "Nao foi possivel remover o evento do Google Calendar.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          toast({
+            title: "Agendamento cancelado no site",
+            description: error instanceof Error ? error.message : "Nao foi possivel remover o evento do Google Calendar.",
+            variant: "destructive",
+          });
+        }
       }
     }
 
-    const response = await cancelReservation.mutateAsync(reservation.id);
+    try {
+      const activeAccessToken = await ensureGoogleIntegration();
+      const email = buildReservationCancellationEmail(
+        response.reservation.serviceName,
+        response.reservation.barberName,
+        response.reservation.reservationDate,
+        response.reservation.reservationTime,
+      );
 
-    if (googleAccessToken) {
-      try {
-        const email = buildReservationCancellationEmail(
-          response.reservation.serviceName,
-          response.reservation.barberName,
-          response.reservation.reservationDate,
-          response.reservation.reservationTime,
-        );
+      await sendGmailMessage({
+        accessToken: activeAccessToken,
+        to: user.email,
+        subject: email.subject,
+        text: email.text,
+      });
+    } catch (error) {
+      if (isGoogleAuthError(error)) {
+        try {
+          const activeAccessToken = await ensureGoogleIntegration(true);
+          const email = buildReservationCancellationEmail(
+            response.reservation.serviceName,
+            response.reservation.barberName,
+            response.reservation.reservationDate,
+            response.reservation.reservationTime,
+          );
 
-        await sendGmailMessage({
-          accessToken: googleAccessToken,
-          to: user.email,
-          subject: email.subject,
-          text: email.text,
-        });
-      } catch (error) {
+          await sendGmailMessage({
+            accessToken: activeAccessToken,
+            to: user.email,
+            subject: email.subject,
+            text: email.text,
+          });
+        } catch (retryError) {
+          toast({
+            title: "Cancelado sem e-mail",
+            description: retryError instanceof Error ? retryError.message : "Nao foi possivel enviar o e-mail de cancelamento.",
+            variant: "destructive",
+          });
+        }
+      } else {
         toast({
           title: "Cancelado sem e-mail",
           description: error instanceof Error ? error.message : "Nao foi possivel enviar o e-mail de cancelamento.",
