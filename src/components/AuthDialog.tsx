@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { GOOGLE_BOOKING_SCOPES } from "@/lib/google";
+import { ensureGoogleIdentityScript } from "@/lib/google";
 
 type AuthDialogProps = {
   open: boolean;
@@ -13,11 +13,10 @@ type AuthDialogProps = {
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
-  const { loginWithGoogleAccessToken } = useAuth();
+  const { connectGoogleServices } = useAuth();
   const [googleReady, setGoogleReady] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [startingLogin, setStartingLogin] = useState(false);
-  const tokenClientRef = useRef<{ requestAccessToken: (options?: { prompt?: string }) => void } | null>(null);
 
   useEffect(() => {
     if (!open || !googleClientId) {
@@ -27,72 +26,23 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
     setGoogleReady(false);
     setGoogleError(null);
 
-    const initializeGoogle = () => {
-      if (!window.google?.accounts?.oauth2) {
-        setGoogleError("O SDK do Google foi carregado, mas o cliente OAuth nao ficou disponivel.");
-        return;
-      }
-
-      tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: googleClientId,
-        scope: GOOGLE_BOOKING_SCOPES,
-        callback: async (response) => {
-          if (!response.access_token) {
-            setStartingLogin(false);
-            setGoogleError("O Google nao retornou um token de acesso.");
-            return;
-          }
-
-          try {
-            await loginWithGoogleAccessToken(response.access_token, response.scope);
-            onOpenChange(false);
-          } catch (error) {
-            setGoogleError(error instanceof Error ? error.message : "Falha ao entrar com Google.");
-          } finally {
-            setStartingLogin(false);
-          }
-        },
-      });
-
-      setGoogleReady(true);
-    };
-
-    if (window.google?.accounts?.oauth2) {
-      initializeGoogle();
-      return;
-    }
-
-    const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
-
-    if (existingScript) {
-      existingScript.addEventListener("load", initializeGoogle, { once: true });
-      existingScript.addEventListener("error", () => setGoogleError("Nao foi possivel carregar o script do Google."), { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = initializeGoogle;
-    script.onerror = () => setGoogleError("Nao foi possivel carregar o script do Google.");
-    document.head.appendChild(script);
-
-    return () => {
-      script.onload = null;
-      script.onerror = null;
-    };
-  }, [loginWithGoogleAccessToken, onOpenChange, open]);
+    void ensureGoogleIdentityScript()
+      .then(() => setGoogleReady(true))
+      .catch((error) => setGoogleError(error instanceof Error ? error.message : "Nao foi possivel carregar o script do Google."));
+  }, [open]);
 
   const handleGoogleLogin = () => {
-    if (!tokenClientRef.current) {
+    if (!googleReady) {
       setGoogleError("O login Google ainda nao esta pronto.");
       return;
     }
 
     setStartingLogin(true);
     setGoogleError(null);
-    tokenClientRef.current.requestAccessToken({ prompt: "consent" });
+    void connectGoogleServices(true)
+      .then(() => onOpenChange(false))
+      .catch((error) => setGoogleError(error instanceof Error ? error.message : "Falha ao entrar com Google."))
+      .finally(() => setStartingLogin(false));
   };
 
   return (

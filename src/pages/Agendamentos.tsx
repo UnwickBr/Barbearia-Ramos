@@ -12,13 +12,15 @@ import {
   buildReservationConfirmationEmail,
   createGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
+  hasGoogleBookingScopes,
+  isGoogleAuthError,
   sendGmailMessage,
 } from "@/lib/google";
 import { reservationsApi } from "@/lib/api";
 import type { Reservation } from "@/lib/types";
 
 const Agendamentos = () => {
-  const { user, logout, loading, googleAccessToken } = useAuth();
+  const { user, logout, loading, googleAccessToken, connectGoogleServices } = useAuth();
   const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
@@ -87,20 +89,37 @@ const Agendamentos = () => {
     return <Navigate to="/" replace />;
   }
 
-  const syncReservationWithGoogle = async (reservation: Reservation) => {
-    if (!googleAccessToken) {
-      toast({
-        title: "Reserva salva",
-        description: "O horario foi salvo, mas o token do Google nao estava ativo para sincronizar calendario e e-mail.",
-      });
-      return reservation;
+  const ensureGoogleIntegration = async (forceConsent = false) => {
+    if (googleAccessToken && hasGoogleBookingScopes() && !forceConsent) {
+      return googleAccessToken;
     }
 
+    toast({
+      title: forceConsent ? "Reconecte o Google" : "Conectando Google",
+      description: "Confirme o acesso ao Google Calendar e ao Gmail para sincronizar o agendamento.",
+    });
+
+    return await connectGoogleServices(forceConsent || !googleAccessToken || !hasGoogleBookingScopes());
+  };
+
+  const syncReservationWithGoogle = async (reservation: Reservation) => {
     let updatedReservation = reservation;
+    let activeAccessToken: string;
+
+    try {
+      activeAccessToken = await ensureGoogleIntegration();
+    } catch (error) {
+      toast({
+        title: "Reserva salva sem Google",
+        description: error instanceof Error ? error.message : "Nao foi possivel autorizar o Google Calendar.",
+        variant: "destructive",
+      });
+      return updatedReservation;
+    }
 
     try {
       const calendarEvent = await createGoogleCalendarEvent({
-        accessToken: googleAccessToken,
+        accessToken: activeAccessToken,
         serviceName: reservation.serviceName,
         barberName: reservation.barberName,
         reservationDate: reservation.reservationDate,
@@ -116,12 +135,41 @@ const Agendamentos = () => {
 
       updatedReservation = response.reservation;
     } catch (error) {
-      toast({
-        title: "Reserva salva sem Google Calendar",
-        description: error instanceof Error ? error.message : "Nao foi possivel criar o evento no Google Calendar.",
-        variant: "destructive",
-      });
-      return updatedReservation;
+      if (isGoogleAuthError(error)) {
+        try {
+          activeAccessToken = await ensureGoogleIntegration(true);
+          const calendarEvent = await createGoogleCalendarEvent({
+            accessToken: activeAccessToken,
+            serviceName: reservation.serviceName,
+            barberName: reservation.barberName,
+            reservationDate: reservation.reservationDate,
+            reservationTime: reservation.reservationTime,
+            serviceDurationMinutes: reservation.serviceDurationMinutes,
+            userEmail: user.email,
+          });
+
+          const response = await reservationsApi.attachCalendarEvent(reservation.id, {
+            googleCalendarEventId: calendarEvent.eventId,
+            googleCalendarEventLink: calendarEvent.eventLink,
+          });
+
+          updatedReservation = response.reservation;
+        } catch (retryError) {
+          toast({
+            title: "Reserva salva sem Google Calendar",
+            description: retryError instanceof Error ? retryError.message : "Nao foi possivel criar o evento no Google Calendar.",
+            variant: "destructive",
+          });
+          return updatedReservation;
+        }
+      } else {
+        toast({
+          title: "Reserva salva sem Google Calendar",
+          description: error instanceof Error ? error.message : "Nao foi possivel criar o evento no Google Calendar.",
+          variant: "destructive",
+        });
+        return updatedReservation;
+      }
     }
 
     try {
@@ -133,17 +181,42 @@ const Agendamentos = () => {
       );
 
       await sendGmailMessage({
-        accessToken: googleAccessToken,
+        accessToken: activeAccessToken,
         to: user.email,
         subject: email.subject,
         text: email.text,
       });
     } catch (error) {
-      toast({
-        title: "Evento criado, mas sem e-mail",
-        description: error instanceof Error ? error.message : "Nao foi possivel enviar o e-mail de confirmacao.",
-        variant: "destructive",
-      });
+      if (isGoogleAuthError(error)) {
+        try {
+          activeAccessToken = await ensureGoogleIntegration(true);
+          const email = buildReservationConfirmationEmail(
+            updatedReservation.serviceName,
+            updatedReservation.barberName,
+            updatedReservation.reservationDate,
+            updatedReservation.reservationTime,
+          );
+
+          await sendGmailMessage({
+            accessToken: activeAccessToken,
+            to: user.email,
+            subject: email.subject,
+            text: email.text,
+          });
+        } catch (retryError) {
+          toast({
+            title: "Evento criado, mas sem e-mail",
+            description: retryError instanceof Error ? retryError.message : "Nao foi possivel enviar o e-mail de confirmacao.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Evento criado, mas sem e-mail",
+          description: error instanceof Error ? error.message : "Nao foi possivel enviar o e-mail de confirmacao.",
+          variant: "destructive",
+        });
+      }
     }
 
     return updatedReservation;

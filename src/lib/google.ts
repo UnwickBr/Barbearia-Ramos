@@ -12,6 +12,13 @@ export const GOOGLE_BOOKING_SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
+const GOOGLE_REQUIRED_SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/gmail.send",
+];
+
 const formatCalendarDateTime = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -57,6 +64,93 @@ export const hasStoredGoogleScope = (scope: string) => {
   }
 
   return scopes.split(/\s+/).includes(scope);
+};
+
+export const hasGoogleBookingScopes = () => GOOGLE_REQUIRED_SCOPES.every((scope) => hasStoredGoogleScope(scope));
+
+export const ensureGoogleIdentityScript = async () => {
+  if (window.google?.accounts?.oauth2) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
+
+    const handleLoad = () => resolve();
+    const handleError = () => reject(new Error("Nao foi possivel carregar o script do Google."));
+
+    if (existingScript) {
+      existingScript.addEventListener("load", handleLoad, { once: true });
+      existingScript.addEventListener("error", handleError, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", handleLoad, { once: true });
+    script.addEventListener("error", handleError, { once: true });
+    document.head.appendChild(script);
+  });
+
+  if (!window.google?.accounts?.oauth2) {
+    throw new Error("O SDK do Google foi carregado, mas o cliente OAuth nao ficou disponivel.");
+  }
+};
+
+export const requestGoogleBookingAccessToken = async (prompt: "" | "consent" = "consent") => {
+  if (!googleClientId) {
+    throw new Error("O login Google nao esta configurado neste ambiente.");
+  }
+
+  await ensureGoogleIdentityScript();
+
+  return await new Promise<{ accessToken: string; scope?: string }>((resolve, reject) => {
+    const tokenClient = window.google?.accounts?.oauth2.initTokenClient({
+      client_id: googleClientId,
+      scope: GOOGLE_BOOKING_SCOPES,
+      callback: (response) => {
+        if (response.error) {
+          reject(new Error(response.error));
+          return;
+        }
+
+        if (!response.access_token) {
+          reject(new Error("O Google nao retornou um token de acesso."));
+          return;
+        }
+
+        resolve({
+          accessToken: response.access_token,
+          scope: response.scope,
+        });
+      },
+    });
+
+    if (!tokenClient) {
+      reject(new Error("Nao foi possivel iniciar o cliente OAuth do Google."));
+      return;
+    }
+
+    tokenClient.requestAccessToken({ prompt });
+  });
+};
+
+export const isGoogleAuthError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("insufficient") ||
+    message.includes("login required") ||
+    message.includes("invalid credentials") ||
+    message.includes("unauthorized") ||
+    message.includes("token") ||
+    message.includes("scope")
+  );
 };
 
 type CalendarPayload = {

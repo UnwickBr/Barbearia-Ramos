@@ -1,6 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { authApi } from "@/lib/api";
-import { clearStoredGoogleAccessToken, getStoredGoogleAccessToken, storeGoogleAccessToken } from "@/lib/google";
+import {
+  clearStoredGoogleAccessToken,
+  getStoredGoogleAccessToken,
+  requestGoogleBookingAccessToken,
+  storeGoogleAccessToken,
+} from "@/lib/google";
 import type { User } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
 
@@ -9,6 +14,7 @@ interface AuthContextType {
   loading: boolean;
   googleAccessToken: string | null;
   loginWithGoogleAccessToken: (accessToken: string, scopes?: string) => Promise<void>;
+  connectGoogleServices: (forceConsent?: boolean) => Promise<string>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -45,7 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     void refreshUser();
   }, []);
 
-  const loginWithGoogleAccessToken = async (accessToken: string, scopes?: string) => {
+  const loginWithGoogleAccessToken = useCallback(async (accessToken: string, scopes?: string) => {
     const response = await authApi.googleAccessToken(accessToken);
     setUser(response.user);
     setGoogleAccessToken(accessToken);
@@ -54,7 +60,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       title: "Login realizado",
       description: `Bem-vindo de volta, ${response.user.name}.`,
     });
-  };
+  }, []);
+
+  const connectGoogleServices = useCallback(async (forceConsent = false) => {
+    const response = await requestGoogleBookingAccessToken(forceConsent ? "consent" : "");
+    await loginWithGoogleAccessToken(response.accessToken, response.scope);
+    return response.accessToken;
+  }, [loginWithGoogleAccessToken]);
 
   const logout = async () => {
     await authApi.logout();
@@ -73,10 +85,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       googleAccessToken,
       loginWithGoogleAccessToken,
+      connectGoogleServices,
       logout,
       refreshUser,
     }),
-    [user, loading, googleAccessToken],
+    [connectGoogleServices, googleAccessToken, loading, loginWithGoogleAccessToken, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
