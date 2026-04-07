@@ -3,22 +3,10 @@ import { authApi } from "@/lib/api";
 import type { User } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
 
-type LoginPayload = {
-  email: string;
-  password: string;
-};
-
-type RegisterPayload = {
-  name: string;
-  email: string;
-  password: string;
-};
-
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (payload: LoginPayload) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -54,21 +42,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     void refreshUser();
   }, []);
 
-  const login = async (payload: LoginPayload) => {
-    const response = await authApi.login(payload);
+  const loginWithGoogle = async (credential: string) => {
+    const response = await authApi.google(credential);
     setUser(response.user);
     toast({
       title: "Login realizado",
       description: `Bem-vindo de volta, ${response.user.name}.`,
-    });
-  };
-
-  const register = async (payload: RegisterPayload) => {
-    const response = await authApi.register(payload);
-    setUser(response.user);
-    toast({
-      title: "Conta criada",
-      description: "Sua conta foi criada e já está pronta para agendar.",
     });
   };
 
@@ -85,8 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     () => ({
       user,
       loading,
-      login,
-      register,
+      loginWithGoogle,
       logout,
       refreshUser,
     }),

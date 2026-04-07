@@ -20,11 +20,15 @@ export const ensureSchema = async () => {
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           email TEXT NOT NULL UNIQUE,
-          password_hash TEXT NOT NULL,
+          google_sub TEXT UNIQUE,
+          password_hash TEXT,
           avatar_url TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT`;
+      await sql`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_unique_idx ON users (google_sub) WHERE google_sub IS NOT NULL`;
       await sql`
         CREATE TABLE IF NOT EXISTS reservations (
           id TEXT PRIMARY KEY,

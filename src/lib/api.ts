@@ -24,10 +24,8 @@ async function apiRequest<T>(url: string, options: JsonRequestOptions = {}) {
 
 export const authApi = {
   me: () => apiRequest<{ user: User | null }>("/api/auth/me"),
-  register: (payload: { name: string; email: string; password: string }) =>
-    apiRequest<{ user: User }>("/api/auth/register", { method: "POST", body: payload }),
-  login: (payload: { email: string; password: string }) =>
-    apiRequest<{ user: User }>("/api/auth/login", { method: "POST", body: payload }),
+  google: (credential: string) =>
+    apiRequest<{ user: User }>("/api/auth/google", { method: "POST", body: { credential } }),
   logout: () => apiRequest<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
 };
 

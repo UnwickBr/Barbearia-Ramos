@@ -5,7 +5,7 @@ export type ApiRequest = {
     cookie?: string;
     [key: string]: string | string[] | undefined;
   };
-  on: (event: string, callback: (chunk?: any) => void) => void;
+  on: (event: string, callback: (chunk?: unknown) => void) => void;
 };
 
 export type ApiResponse = {
