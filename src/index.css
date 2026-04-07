@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Oswald:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+@font-face {
+  font-family: 'The Kallman Demo';
+  src: url('./assets/fonts/the-kallman-demo.otf') format('opentype');
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -59,16 +65,16 @@
 
 @layer components {
   .street-brand {
-    font-family: 'Bungee', sans-serif;
-    letter-spacing: 0.12em;
+    font-family: 'The Kallman Demo', 'Oswald', sans-serif;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     text-shadow:
-      0 2px 0 rgba(0, 0, 0, 0.9),
-      0 6px 18px rgba(0, 0, 0, 0.45);
+      0 3px 0 rgba(0, 0, 0, 0.9),
+      0 10px 24px rgba(0, 0, 0, 0.55);
   }
 
   .street-brand-hero {
-    line-height: 0.92;
+    line-height: 0.88;
     filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
   }
 }
