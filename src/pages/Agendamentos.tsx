@@ -1,96 +1,87 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
-import { Calendar, Clock, Scissors, ArrowLeft, Check } from "lucide-react";
-
-const services = [
-  { id: "corte", name: "Corte Clássico", price: "R$ 45", duration: "30 min" },
-  { id: "barba", name: "Barba Completa", price: "R$ 35", duration: "25 min" },
-  { id: "combo", name: "Corte + Barba", price: "R$ 70", duration: "50 min" },
-  { id: "pigmentacao", name: "Pigmentação", price: "R$ 60", duration: "40 min" },
-  { id: "sobrancelha", name: "Sobrancelha", price: "R$ 20", duration: "15 min" },
-  { id: "hidratacao", name: "Hidratação Capilar", price: "R$ 50", duration: "30 min" },
-];
-
-const barbers = ["Carlos", "Rafael", "André", "Lucas"];
-
-const timeSlots = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"];
+import { ArrowLeft, Calendar, Check, Clock, LoaderCircle, Scissors } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { reservationsApi } from "@/lib/api";
+import { barbers, services, timeSlots } from "@/lib/barbershop";
+import type { Reservation } from "@/lib/types";
+import { toast } from "@/hooks/use-toast";
 
 const Agendamentos = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmedReservation, setConfirmedReservation] = useState<Reservation | null>(null);
 
-  if (!user) return <Navigate to="/" replace />;
+  const canConfirm = Boolean(selectedService && selectedBarber && selectedDate && selectedTime);
 
-  const canConfirm = selectedService && selectedBarber && selectedDate && selectedTime;
+  const reservationsQuery = useQuery({
+    queryKey: ["reservations", user?.id],
+    queryFn: async () => {
+      const response = await reservationsApi.list();
+      return response.reservations;
+    },
+    enabled: Boolean(user),
+  });
 
-  const handleConfirm = () => {
-    if (canConfirm) setConfirmed(true);
-  };
+  const createReservation = useMutation({
+    mutationFn: reservationsApi.create,
+    onSuccess: (data) => {
+      setConfirmedReservation(data.reservation);
+      void queryClient.invalidateQueries({ queryKey: ["reservations", user?.id] });
+      toast({
+        title: "Reserva confirmada",
+        description: "Seu horário foi salvo no sistema.",
+      });
+    },
+  });
 
-  if (confirmed) {
-    const service = services.find((s) => s.id === selectedService);
+  const selectedServiceData = useMemo(
+    () => services.find((service) => service.id === selectedService) ?? null,
+    [selectedService],
+  );
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="bg-card border border-border rounded-lg p-8 max-w-md w-full text-center"
-        >
-          <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check className="w-8 h-8 text-primary" />
-          </div>
-          <h2 className="font-display text-3xl font-bold mb-2">Agendado!</h2>
-          <p className="text-muted-foreground mb-6">Seu horário foi reservado com sucesso.</p>
-          <div className="space-y-3 text-left bg-secondary/50 rounded-md p-4 mb-6">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Serviço</span>
-              <span className="font-semibold">{service?.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Barbeiro</span>
-              <span className="font-semibold">{selectedBarber}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Data</span>
-              <span className="font-semibold">{new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR")}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Horário</span>
-              <span className="font-semibold">{selectedTime}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Valor</span>
-              <span className="font-semibold text-primary">{service?.price}</span>
-            </div>
-          </div>
-          <Link
-            to="/"
-            className="inline-block bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-md hover:bg-primary/90 transition-colors"
-          >
-            Voltar ao Início
-          </Link>
-        </motion.div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleConfirm = async () => {
+    if (!canConfirm || !selectedService || !selectedBarber || !selectedDate || !selectedTime) {
+      return;
+    }
+
+    await createReservation.mutateAsync({
+      serviceId: selectedService,
+      barberName: selectedBarber,
+      reservationDate: selectedDate,
+      reservationTime: selectedTime,
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto flex items-center justify-between h-16 px-4">
-          <Link to="/" className="font-display text-2xl text-primary font-bold tracking-wide">
+    <div className="min-h-screen bg-background pb-12 pt-20">
+      <nav className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          <Link to="/" className="font-display text-2xl font-bold tracking-wide text-primary">
             BARBEARIA <span className="text-foreground">RAMOS</span>
           </Link>
           <div className="flex items-center gap-3">
-            <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+            <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-full" />
             <span className="text-sm font-medium">{user.name}</span>
-            <button onClick={logout} className="text-sm text-muted-foreground hover:text-foreground transition-colors ml-2">
+            <button onClick={() => void logout()} className="ml-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
               Sair
             </button>
           </div>
@@ -98,36 +89,75 @@ const Agendamentos = () => {
       </nav>
 
       <div className="container mx-auto px-4">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8">
-          <ArrowLeft className="w-4 h-4" /> Voltar
+        <Link to="/" className="mb-8 inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Voltar
         </Link>
 
-        <h1 className="font-display text-4xl font-bold mb-2">
+        <h1 className="mb-2 font-display text-4xl font-bold">
           Agendar <span className="text-primary">Horário</span>
         </h1>
-        <p className="text-muted-foreground mb-10">Escolha o serviço, barbeiro, data e horário.</p>
+        <p className="mb-10 text-muted-foreground">Escolha o serviço, barbeiro, data e horário.</p>
+
+        {confirmedReservation ? (
+          <motion.div
+            initial={{ scale: 0.98, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="mb-10 rounded-lg border border-primary/30 bg-card p-6"
+          >
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
+                <Check className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl font-bold">Reserva confirmada</h2>
+                <p className="text-sm text-muted-foreground">Seus dados já foram salvos no banco.</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 rounded-md bg-secondary/50 p-4 md:grid-cols-2">
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Serviço</span>
+                <span className="font-semibold">{confirmedReservation.serviceName}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Barbeiro</span>
+                <span className="font-semibold">{confirmedReservation.barberName}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Data</span>
+                <span className="font-semibold">
+                  {new Date(`${confirmedReservation.reservationDate}T12:00:00`).toLocaleDateString("pt-BR")}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Horário</span>
+                <span className="font-semibold">{confirmedReservation.reservationTime}</span>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
 
         <div className="mb-10">
-          <h3 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
-            <Scissors className="w-5 h-5 text-primary" /> Serviço
+          <h3 className="mb-4 flex items-center gap-2 font-display text-xl font-semibold">
+            <Scissors className="h-5 w-5 text-primary" /> Serviço
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {services.map((s) => (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {services.map((service) => (
               <button
-                key={s.id}
-                onClick={() => setSelectedService(s.id)}
-                className={`text-left p-4 rounded-lg border transition-all ${
-                  selectedService === s.id
+                key={service.id}
+                onClick={() => setSelectedService(service.id)}
+                className={`rounded-lg border p-4 text-left transition-all ${
+                  selectedService === service.id
                     ? "border-primary bg-primary/10"
                     : "border-border bg-card hover:border-primary/40"
                 }`}
               >
-                <div className="flex justify-between items-start">
-                  <span className="font-semibold">{s.name}</span>
-                  <span className="text-primary font-display font-bold">{s.price}</span>
+                <div className="flex items-start justify-between">
+                  <span className="font-semibold">{service.name}</span>
+                  <span className="font-display font-bold text-primary">{service.price}</span>
                 </div>
-                <span className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                  <Clock className="w-3 h-3" /> {s.duration}
+                <span className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock className="h-3 w-3" /> {service.duration}
                 </span>
               </button>
             ))}
@@ -135,71 +165,112 @@ const Agendamentos = () => {
         </div>
 
         <div className="mb-10">
-          <h3 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
-            <Scissors className="w-5 h-5 text-primary" /> Barbeiro
+          <h3 className="mb-4 flex items-center gap-2 font-display text-xl font-semibold">
+            <Scissors className="h-5 w-5 text-primary" /> Barbeiro
           </h3>
           <div className="flex flex-wrap gap-3">
-            {barbers.map((b) => (
+            {barbers.map((barber) => (
               <button
-                key={b}
-                onClick={() => setSelectedBarber(b)}
-                className={`px-6 py-3 rounded-lg border font-medium transition-all ${
-                  selectedBarber === b
+                key={barber}
+                onClick={() => setSelectedBarber(barber)}
+                className={`rounded-lg border px-6 py-3 font-medium transition-all ${
+                  selectedBarber === barber
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-primary/40"
                 }`}
               >
-                {b}
+                {barber}
               </button>
             ))}
           </div>
         </div>
 
         <div className="mb-10">
-          <h3 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" /> Data
+          <h3 className="mb-4 flex items-center gap-2 font-display text-xl font-semibold">
+            <Calendar className="h-5 w-5 text-primary" /> Data
           </h3>
           <input
             type="date"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(event) => setSelectedDate(event.target.value)}
             min={new Date().toISOString().split("T")[0]}
-            className="bg-card border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-primary transition-colors"
+            className="rounded-lg border border-border bg-card px-4 py-3 text-foreground transition-colors focus:border-primary focus:outline-none"
           />
         </div>
 
         <div className="mb-12">
-          <h3 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-primary" /> Horário
+          <h3 className="mb-4 flex items-center gap-2 font-display text-xl font-semibold">
+            <Clock className="h-5 w-5 text-primary" /> Horário
           </h3>
           <div className="flex flex-wrap gap-2">
-            {timeSlots.map((t) => (
+            {timeSlots.map((time) => (
               <button
-                key={t}
-                onClick={() => setSelectedTime(t)}
-                className={`px-4 py-2 rounded-md border text-sm font-medium transition-all ${
-                  selectedTime === t
+                key={time}
+                onClick={() => setSelectedTime(time)}
+                className={`rounded-md border px-4 py-2 text-sm font-medium transition-all ${
+                  selectedTime === time
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-primary/40"
                 }`}
               >
-                {t}
+                {time}
               </button>
             ))}
           </div>
         </div>
 
         <button
-          onClick={handleConfirm}
-          disabled={!canConfirm}
-          className={`px-8 py-4 rounded-md text-lg font-semibold transition-all ${
-            canConfirm
+          onClick={() => void handleConfirm()}
+          disabled={!canConfirm || createReservation.isPending}
+          className={`rounded-md px-8 py-4 text-lg font-semibold transition-all ${
+            canConfirm && !createReservation.isPending
               ? "bg-primary text-primary-foreground hover:bg-primary/90"
-              : "bg-muted text-muted-foreground cursor-not-allowed"
+              : "cursor-not-allowed bg-muted text-muted-foreground"
           }`}
         >
-          Confirmar Agendamento
+          {createReservation.isPending ? "Salvando..." : "Confirmar Agendamento"}
         </button>
+
+        {createReservation.isError ? (
+          <p className="mt-4 text-sm text-destructive">{createReservation.error.message}</p>
+        ) : null}
+
+        <section className="mt-16 border-t border-border pt-10">
+          <div className="mb-6">
+            <h2 className="font-display text-3xl font-bold">Minhas reservas</h2>
+              <p className="text-muted-foreground">Agendamentos vinculados ao seu login.</p>
+          </div>
+
+          {reservationsQuery.isLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              Carregando reservas...
+            </div>
+          ) : reservationsQuery.data && reservationsQuery.data.length > 0 ? (
+            <div className="grid gap-4">
+              {reservationsQuery.data.map((reservation) => (
+                <div key={reservation.id} className="rounded-lg border border-border bg-card p-5">
+                  <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <h3 className="font-display text-xl font-semibold">{reservation.serviceName}</h3>
+                    <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary">
+                      {reservation.status}
+                    </span>
+                  </div>
+                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                    <span>Barbeiro: {reservation.barberName}</span>
+                    <span>Horario: {reservation.reservationTime}</span>
+                    <span>Data: {new Date(`${reservation.reservationDate}T12:00:00`).toLocaleDateString("pt-BR")}</span>
+                    <span>Valor: R$ {reservation.servicePrice.toFixed(2).replace(".", ",")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-card/40 p-6 text-muted-foreground">
+              Você ainda não tem reservas salvas.
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

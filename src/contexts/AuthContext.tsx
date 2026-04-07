@@ -1,42 +1,97 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { authApi } from "@/lib/api";
+import type { User } from "@/lib/types";
+import { toast } from "@/hooks/use-toast";
 
-interface User {
+type LoginPayload = {
+  email: string;
+  password: string;
+};
+
+type RegisterPayload = {
   name: string;
   email: string;
-  avatar: string;
-}
+  password: string;
+};
 
 interface AuthContextType {
   user: User | null;
-  login: () => void;
-  logout: () => void;
+  loading: boolean;
+  login: (payload: LoginPayload) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+
+  return context;
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = () => {
-    // Simula login com Google (frontend only)
-    setUser({
-      name: "João Silva",
-      email: "joao@gmail.com",
-      avatar: "https://ui-avatars.com/api/?name=João+Silva&background=c8922a&color=fff&bold=true",
+  const refreshUser = async () => {
+    try {
+      const response = await authApi.me();
+      setUser(response.user);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshUser();
+  }, []);
+
+  const login = async (payload: LoginPayload) => {
+    const response = await authApi.login(payload);
+    setUser(response.user);
+    toast({
+      title: "Login realizado",
+      description: `Bem-vindo de volta, ${response.user.name}.`,
     });
   };
 
-  const logout = () => setUser(null);
+  const register = async (payload: RegisterPayload) => {
+    const response = await authApi.register(payload);
+    setUser(response.user);
+    toast({
+      title: "Conta criada",
+      description: "Sua conta foi criada e já está pronta para agendar.",
+    });
+  };
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const logout = async () => {
+    await authApi.logout();
+    setUser(null);
+    toast({
+      title: "Sessão encerrada",
+      description: "Você saiu da sua conta.",
+    });
+  };
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      login,
+      register,
+      logout,
+      refreshUser,
+    }),
+    [user, loading],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
