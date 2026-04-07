@@ -65,6 +65,12 @@
 
 @layer components {
   .street-brand {
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .street-brand-word {
     font-family: 'The Kallman Demo', 'Oswald', sans-serif;
     letter-spacing: 0.06em;
     text-transform: uppercase;

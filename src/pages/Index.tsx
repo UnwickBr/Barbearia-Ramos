@@ -22,7 +22,9 @@ const Index = () => {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-3">
             <img src={logoRamos} alt="Barbearia Ramos" className="h-10 w-auto" />
-            <span className="street-brand text-base text-foreground sm:text-lg">Barbearia Ramos</span>
+            <span className="street-brand text-sm text-foreground sm:text-base">
+              Barbearia <span className="street-brand-word text-base sm:text-lg">Ramos</span>
+            </span>
           </Link>
 
           <div className="flex items-center gap-6">
@@ -85,7 +87,9 @@ const Index = () => {
           className="relative max-w-4xl px-4 text-center"
         >
           <img src={logoRamos} alt="Barbearia Ramos" className="mx-auto mb-8 h-32 w-auto md:h-44" />
-          <h1 className="street-brand street-brand-hero mb-4 text-5xl text-foreground md:text-8xl">Barbearia Ramos</h1>
+          <h1 className="street-brand street-brand-hero mb-4 text-5xl text-foreground md:text-8xl">
+            Barbearia <span className="street-brand-word">Ramos</span>
+          </h1>
           <div className="mx-auto mb-6 h-[2px] w-24 bg-foreground" />
           <p className="mb-10 font-body text-base uppercase tracking-wide text-muted-foreground md:text-lg">
             Estilo na rua. Tradição no corte.

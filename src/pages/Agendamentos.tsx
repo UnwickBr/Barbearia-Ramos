@@ -242,8 +242,8 @@ const Agendamentos = () => {
     <div className="min-h-screen bg-background pb-12 pt-20">
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link to="/" className="street-brand text-base text-primary sm:text-xl">
-            Barbearia <span className="text-foreground">Ramos</span>
+          <Link to="/" className="street-brand text-sm text-primary sm:text-lg">
+            Barbearia <span className="street-brand-word text-base text-foreground sm:text-xl">Ramos</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/agendamentos#minhas-reservas" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
