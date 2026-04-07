@@ -432,6 +432,23 @@ const Agendamentos = () => {
       return;
     }
 
+    let calendarAuthorized = true;
+
+    if (!googleAccessToken || !hasGoogleCalendarScopes()) {
+      try {
+        await ensureGoogleCalendarIntegration(true);
+      } catch (error) {
+        calendarAuthorized = false;
+        toast({
+          title: "Google Calendar pendente",
+          description: error instanceof Error
+            ? `${error.message} O horario ainda sera salvo no sistema.`
+            : "Nao foi possivel autorizar o Google Calendar agora. O horario ainda sera salvo no sistema.",
+          variant: "destructive",
+        });
+      }
+    }
+
     const data = await createReservation.mutateAsync({
       serviceId: selectedService,
       barberName: selectedBarber,
@@ -439,7 +456,9 @@ const Agendamentos = () => {
       reservationTime: selectedTime,
     });
 
-    const syncedReservation = await syncReservationWithGoogle(data.reservation);
+    const syncedReservation = calendarAuthorized
+      ? await syncReservationWithGoogle(data.reservation)
+      : data.reservation;
     setConfirmedReservation(syncedReservation);
     setSelectedService(null);
     setSelectedBarber(null);
