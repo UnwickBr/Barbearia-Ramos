@@ -7,7 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { adminApi, reservationsApi } from "@/lib/api";
 import { barbers, timeSlots } from "@/lib/barbershop";
 import { formatReservationDate } from "@/lib/dates";
-import { buildAdminCancellationEmail, buildAdminRescheduleEmail, sendGmailMessage } from "@/lib/google";
+import { buildAdminCancellationEmail, buildAdminRescheduleEmail, hasGoogleEmailScopes, isGoogleAuthError, sendGmailMessage } from "@/lib/google";
 import type { Reservation, User } from "@/lib/types";
 
 type AdminView = "agenda" | "users" | "dashboard";
@@ -35,7 +35,7 @@ type UserDraft = {
 };
 
 const AdminAgendamentos = () => {
-  const { user, loading, logout, googleAccessToken } = useAuth();
+  const { user, loading, logout, googleAccessToken, connectGoogleEmail } = useAuth();
   const queryClient = useQueryClient();
   const [view, setView] = useState<AdminView>("agenda");
   const [agendaDate, setAgendaDate] = useState(todayDate());
@@ -136,11 +136,32 @@ const AdminAgendamentos = () => {
   if (!user) return <Navigate to="/" replace />;
   if (!user.isAdmin) return <Navigate to="/agendamentos" replace />;
 
+  const ensureGoogleEmailIntegration = async (forceConsent = false) => {
+    if (googleAccessToken && hasGoogleEmailScopes() && !forceConsent) {
+      return googleAccessToken;
+    }
+
+    return await connectGoogleEmail(forceConsent || !googleAccessToken || !hasGoogleEmailScopes());
+  };
+
   const notify = async (to: string | undefined, subject: string, text: string, fallbackTitle: string) => {
     if (!googleAccessToken || !to) return;
+
     try {
-      await sendGmailMessage({ accessToken: googleAccessToken, to, subject, text });
+      const emailAccessToken = await ensureGoogleEmailIntegration();
+      await sendGmailMessage({ accessToken: emailAccessToken, to, subject, text });
     } catch (error) {
+      if (isGoogleAuthError(error)) {
+        try {
+          const emailAccessToken = await ensureGoogleEmailIntegration(true);
+          await sendGmailMessage({ accessToken: emailAccessToken, to, subject, text });
+          return;
+        } catch (retryError) {
+          toast({ title: fallbackTitle, description: retryError instanceof Error ? retryError.message : "Falha ao notificar por e-mail.", variant: "destructive" });
+          return;
+        }
+      }
+
       toast({ title: fallbackTitle, description: error instanceof Error ? error.message : "Falha ao notificar por e-mail.", variant: "destructive" });
     }
   };
