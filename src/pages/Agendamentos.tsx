@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -37,6 +37,19 @@ const Agendamentos = () => {
     enabled: Boolean(user),
   });
 
+  const availabilityQuery = useQuery({
+    queryKey: ["availability", selectedBarber, selectedDate],
+    queryFn: async () => {
+      if (!selectedBarber || !selectedDate) {
+        return [] as string[];
+      }
+
+      const response = await reservationsApi.availability(selectedBarber, selectedDate);
+      return response.unavailableTimes;
+    },
+    enabled: Boolean(selectedBarber && selectedDate),
+  });
+
   const createReservation = useMutation({
     mutationFn: reservationsApi.create,
   });
@@ -53,6 +66,14 @@ const Agendamentos = () => {
     () => services.find((service) => service.id === selectedService) ?? null,
     [selectedService],
   );
+
+  const unavailableTimes = useMemo(() => availabilityQuery.data ?? [], [availabilityQuery.data]);
+
+  useEffect(() => {
+    if (selectedTime && unavailableTimes.includes(selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [selectedTime, unavailableTimes]);
 
   if (loading) {
     return (
@@ -130,6 +151,16 @@ const Agendamentos = () => {
 
   const handleConfirm = async () => {
     if (!canConfirm || !selectedService || !selectedBarber || !selectedDate || !selectedTime) {
+      return;
+    }
+
+    if (unavailableTimes.includes(selectedTime)) {
+      toast({
+        title: "Horario indisponivel",
+        description: "Esse horario acabou de ser ocupado. Escolha outro horario.",
+        variant: "destructive",
+      });
+      setSelectedTime(null);
       return;
     }
 
@@ -355,20 +386,47 @@ const Agendamentos = () => {
             <Clock className="h-5 w-5 text-primary" /> Horario
           </h3>
           <div className="flex flex-wrap gap-2">
-            {timeSlots.map((time) => (
-              <button
-                key={time}
-                onClick={() => setSelectedTime(time)}
-                className={`rounded-md border px-4 py-2 text-sm font-medium transition-all ${
-                  selectedTime === time
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border bg-card text-muted-foreground hover:border-primary/40"
-                }`}
-              >
-                {time}
-              </button>
-            ))}
+            {timeSlots.map((time) => {
+              const isUnavailable = unavailableTimes.includes(time);
+              const isSelected = selectedTime === time;
+
+              return (
+                <button
+                  key={time}
+                  onClick={() => {
+                    if (!isUnavailable) {
+                      setSelectedTime(time);
+                    }
+                  }}
+                  disabled={isUnavailable}
+                  className={`rounded-md border px-4 py-2 text-sm font-medium transition-all ${
+                    isUnavailable
+                      ? "cursor-not-allowed border-border/60 bg-muted/60 text-muted-foreground line-through opacity-60"
+                      : isSelected
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  {time}
+                </button>
+              );
+            })}
           </div>
+          {selectedBarber && selectedDate ? (
+            availabilityQuery.isLoading ? (
+              <p className="mt-3 text-sm text-muted-foreground">Verificando horarios indisponiveis...</p>
+            ) : unavailableTimes.length > 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Horarios riscados ja estao reservados para {selectedBarber} em {formatReservationDate(selectedDate)}.
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Nenhum horario reservado para {selectedBarber} em {formatReservationDate(selectedDate)} ate agora.
+              </p>
+            )
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">Escolha barbeiro e data para ver os horarios disponiveis.</p>
+          )}
         </div>
 
         <button

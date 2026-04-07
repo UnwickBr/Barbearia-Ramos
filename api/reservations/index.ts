@@ -56,13 +56,37 @@ const mapReservation = (reservation: ReservationRow) => ({
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
 
-  const user = await getAuthenticatedUser(req);
-
-  if (!user) {
-    return sendJson(res, 401, { error: "Faca login para continuar." });
-  }
-
   if (req.method === "GET") {
+    const barberName = Array.isArray(req.query?.barberName) ? req.query?.barberName[0]?.trim() : req.query?.barberName?.trim();
+    const reservationDate = Array.isArray(req.query?.reservationDate)
+      ? req.query?.reservationDate[0]?.trim()
+      : req.query?.reservationDate?.trim();
+
+    if (barberName && reservationDate) {
+      if (!barbers.includes(barberName as (typeof barbers)[number])) {
+        return sendJson(res, 400, { error: "Barbeiro invalido." });
+      }
+
+      const rows = (await sql`
+        SELECT reservation_time
+        FROM reservations
+        WHERE barber_name = ${barberName}
+          AND reservation_date = ${reservationDate}
+          AND status <> 'cancelled'
+        ORDER BY reservation_time ASC
+      `) as Array<{ reservation_time: string }>;
+
+      return sendJson(res, 200, {
+        unavailableTimes: rows.map((row) => row.reservation_time.slice(0, 5)),
+      });
+    }
+
+    const user = await getAuthenticatedUser(req);
+
+    if (!user) {
+      return sendJson(res, 401, { error: "Faca login para continuar." });
+    }
+
     const rows = (await sql`
       SELECT
         id,
@@ -84,6 +108,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     `) as ReservationRow[];
 
     return sendJson(res, 200, { reservations: rows.map(mapReservation) });
+  }
+
+  const user = await getAuthenticatedUser(req);
+
+  if (!user) {
+    return sendJson(res, 401, { error: "Faca login para continuar." });
   }
 
   if (req.method === "POST") {

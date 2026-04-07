@@ -33,6 +33,10 @@ export const authApi = {
 
 export const reservationsApi = {
   list: () => apiRequest<{ reservations: Reservation[] }>("/api/reservations"),
+  availability: (barberName: string, reservationDate: string) =>
+    apiRequest<{ unavailableTimes: string[] }>(
+      `/api/reservations?barberName=${encodeURIComponent(barberName)}&reservationDate=${encodeURIComponent(reservationDate)}`,
+    ),
   create: (payload: { serviceId: string; barberName: string; reservationDate: string; reservationTime: string }) =>
     apiRequest<{ reservation: Reservation }>("/api/reservations", { method: "POST", body: payload }),
   attachCalendarEvent: (reservationId: string, payload: { googleCalendarEventId: string; googleCalendarEventLink?: string | null }) =>
