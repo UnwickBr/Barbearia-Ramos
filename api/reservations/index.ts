@@ -76,6 +76,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         cancelled_at,
         cancellation_reason,
         cancelled_by_email,
+        rescheduled_at,
+        reschedule_reason,
+        rescheduled_by_email,
         created_at
       FROM reservations
       WHERE user_id = ${user.id}
@@ -172,6 +175,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           cancelled_at,
           cancellation_reason,
           cancelled_by_email,
+          rescheduled_at,
+          reschedule_reason,
+          rescheduled_by_email,
           created_at
       `) as ReservationRow[];
 

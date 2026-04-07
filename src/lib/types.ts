@@ -28,6 +28,9 @@ export interface Reservation {
   cancelledAt?: string | null;
   cancellationReason?: string | null;
   cancelledByEmail?: string | null;
+  rescheduledAt?: string | null;
+  rescheduleReason?: string | null;
+  rescheduledByEmail?: string | null;
   customerName?: string;
   customerEmail?: string;
   createdAt: string;

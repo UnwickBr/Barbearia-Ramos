@@ -12,6 +12,7 @@ type ReservationPatchBody = {
   barberName?: string;
   reservationDate?: string;
   reservationTime?: string;
+  rescheduleReason?: string;
 };
 
 type CancelReservationBody = {
@@ -107,6 +108,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           cancelled_at,
           cancellation_reason,
           cancelled_by_email,
+          rescheduled_at,
+          reschedule_reason,
+          rescheduled_by_email,
           created_at
       `) as ReservationRow[];
 
@@ -138,6 +142,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           cancelled_at,
           cancellation_reason,
           cancelled_by_email,
+          rescheduled_at,
+          reschedule_reason,
+          rescheduled_by_email,
           created_at
       `) as ReservationRow[];
 
@@ -148,9 +155,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const barberName = body.barberName?.trim();
       const reservationDate = body.reservationDate?.trim();
       const reservationTime = body.reservationTime?.trim();
+      const rescheduleReason = body.rescheduleReason?.trim();
 
-      if (!barberName || !reservationDate || !reservationTime) {
-        return sendJson(res, 400, { error: "Informe barbeiro, data e horario para remarcar." });
+      if (!barberName || !reservationDate || !reservationTime || !rescheduleReason) {
+        return sendJson(res, 400, { error: "Informe barbeiro, data, horario e justificativa para remarcar." });
       }
 
       if (!barbers.includes(barberName as (typeof barbers)[number])) {
@@ -179,7 +187,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             status = 'confirmed',
             cancelled_at = NULL,
             cancellation_reason = NULL,
-            cancelled_by_email = NULL
+            cancelled_by_email = NULL,
+            rescheduled_at = NOW(),
+            reschedule_reason = ${rescheduleReason},
+            rescheduled_by_email = ${user.email}
           WHERE id = ${reservationId}
           RETURNING
             id,
@@ -197,6 +208,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             cancelled_at,
             cancellation_reason,
             cancelled_by_email,
+            rescheduled_at,
+            reschedule_reason,
+            rescheduled_by_email,
             created_at
         `) as ReservationRow[];
 
@@ -249,6 +263,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         cancelled_at,
         cancellation_reason,
         cancelled_by_email,
+        rescheduled_at,
+        reschedule_reason,
+        rescheduled_by_email,
         created_at
     `) as ReservationRow[];
 

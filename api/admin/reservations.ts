@@ -42,6 +42,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       r.cancelled_at,
       r.cancellation_reason,
       r.cancelled_by_email,
+      r.rescheduled_at,
+      r.reschedule_reason,
+      r.rescheduled_by_email,
       r.created_at,
       u.name AS customer_name,
       u.email AS customer_email

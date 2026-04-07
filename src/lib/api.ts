@@ -43,7 +43,7 @@ export const reservationsApi = {
     apiRequest<{ reservation: Reservation }>(`/api/reservations/${reservationId}`, { method: "PATCH", body: payload }),
   cancel: (reservationId: string, payload?: { cancellationReason?: string }) =>
     apiRequest<{ reservation: Reservation }>(`/api/reservations/${reservationId}`, { method: "DELETE", body: payload }),
-  reschedule: (reservationId: string, payload: { barberName: string; reservationDate: string; reservationTime: string }) =>
+  reschedule: (reservationId: string, payload: { barberName: string; reservationDate: string; reservationTime: string; rescheduleReason: string }) =>
     apiRequest<{ reservation: Reservation }>(`/api/reservations/${reservationId}`, {
       method: "PATCH",
       body: { action: "reschedule", ...payload },

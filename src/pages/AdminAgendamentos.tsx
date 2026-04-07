@@ -43,7 +43,7 @@ const AdminAgendamentos = () => {
   const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("day");
   const [search, setSearch] = useState("");
   const [cancelInputs, setCancelInputs] = useState<Record<string, string>>({});
-  const [rescheduleInputs, setRescheduleInputs] = useState<Record<string, { barberName: string; reservationDate: string; reservationTime: string }>>({});
+  const [rescheduleInputs, setRescheduleInputs] = useState<Record<string, { barberName: string; reservationDate: string; reservationTime: string; reason: string }>>({});
   const [userDrafts, setUserDrafts] = useState<Record<string, UserDraft>>({});
 
   const invalidateAll = () => {
@@ -83,8 +83,8 @@ const AdminAgendamentos = () => {
   });
 
   const rescheduleMutation = useMutation({
-    mutationFn: ({ reservationId, barberName, reservationDate, reservationTime }: { reservationId: string; barberName: string; reservationDate: string; reservationTime: string }) =>
-      reservationsApi.reschedule(reservationId, { barberName, reservationDate, reservationTime }),
+    mutationFn: ({ reservationId, barberName, reservationDate, reservationTime, reason }: { reservationId: string; barberName: string; reservationDate: string; reservationTime: string; reason: string }) =>
+      reservationsApi.reschedule(reservationId, { barberName, reservationDate, reservationTime, rescheduleReason: reason }),
     onSuccess: invalidateAll,
   });
 
@@ -164,10 +164,16 @@ const AdminAgendamentos = () => {
   };
 
   const handleReschedule = async (reservation: Reservation) => {
-    const draft = rescheduleInputs[reservation.id] ?? { barberName: reservation.barberName, reservationDate: reservation.reservationDate, reservationTime: reservation.reservationTime };
-    const response = await rescheduleMutation.mutateAsync({ reservationId: reservation.id, ...draft });
-    const email = buildAdminRescheduleEmail(response.reservation.serviceName, response.reservation.barberName, response.reservation.reservationDate, response.reservation.reservationTime);
+    const draft = rescheduleInputs[reservation.id] ?? { barberName: reservation.barberName, reservationDate: reservation.reservationDate, reservationTime: reservation.reservationTime, reason: "" };
+    const reason = draft.reason.trim();
+    if (!reason) {
+      toast({ title: "Justificativa obrigatoria", description: "Escreva o motivo da remarcacao.", variant: "destructive" });
+      return;
+    }
+    const response = await rescheduleMutation.mutateAsync({ reservationId: reservation.id, ...draft, reason });
+    const email = buildAdminRescheduleEmail(response.reservation.serviceName, response.reservation.barberName, response.reservation.reservationDate, response.reservation.reservationTime, reason);
     await notify(reservation.customerEmail, email.subject, email.text, "Remarcado sem notificacao");
+    setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reason: "" } }));
     toast({ title: "Agendamento remarcado", description: "Horario atualizado com sucesso." });
   };
 
@@ -247,7 +253,7 @@ const AdminAgendamentos = () => {
                         {reservations.length > 0 ? reservations.map((reservation) => {
                           const isCancelled = reservation.status === "cancelled";
                           const isCompleted = reservation.status === "completed";
-                          const draft = rescheduleInputs[reservation.id] ?? { barberName: reservation.barberName, reservationDate: reservation.reservationDate, reservationTime: reservation.reservationTime };
+                          const draft = rescheduleInputs[reservation.id] ?? { barberName: reservation.barberName, reservationDate: reservation.reservationDate, reservationTime: reservation.reservationTime, reason: "" };
                           return (
                             <div key={reservation.id} className="rounded-lg border border-border bg-background/60 p-4">
                               <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -259,6 +265,8 @@ const AdminAgendamentos = () => {
                                 <span>Valor: R$ {reservation.servicePrice.toFixed(2).replace(".", ",")}</span>
                                 {reservation.cancellationReason ? <span>Motivo: {reservation.cancellationReason}</span> : null}
                                 {reservation.cancelledByEmail ? <span>Cancelado por: {reservation.cancelledByEmail}</span> : null}
+                                {reservation.rescheduleReason ? <span>Motivo da remarcacao: {reservation.rescheduleReason}</span> : null}
+                                {reservation.rescheduledByEmail ? <span>Remarcado por: {reservation.rescheduledByEmail}</span> : null}
                               </div>
                               {!isCancelled ? (
                                 <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_0.9fr]">
@@ -269,6 +277,7 @@ const AdminAgendamentos = () => {
                                       <input type="date" value={draft.reservationDate} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationDate: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none" />
                                       <select value={draft.reservationTime} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationTime: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{timeSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
                                     </div>
+                                    <textarea value={draft.reason} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reason: event.target.value } }))} rows={3} placeholder="Justificativa obrigatoria para remarcar este agendamento" className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                                     <button onClick={() => void handleReschedule(reservation)} disabled={rescheduleMutation.isPending} className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm text-foreground hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCcw className="h-4 w-4" /> Remarcar</button>
                                   </div>
                                   <div className="space-y-3 rounded-lg border border-border bg-card/70 p-4">

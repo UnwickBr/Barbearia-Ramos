@@ -317,6 +317,7 @@ export const buildAdminRescheduleEmail = (
   barberName: string,
   reservationDate: string,
   reservationTime: string,
+  justification: string,
 ) => ({
   subject: "Seu agendamento foi remarcado - Barbearia Ramos",
   text: [
@@ -325,6 +326,9 @@ export const buildAdminRescheduleEmail = (
     `Servico: ${serviceName}`,
     `Barbeiro: ${barberName}`,
     `Nova data: ${formatReservationDateTime(reservationDate, reservationTime)}`,
+    "",
+    "Justificativa:",
+    justification,
     "",
     "Se precisar, responda este e-mail para falar com a barbearia.",
   ].join("\n"),

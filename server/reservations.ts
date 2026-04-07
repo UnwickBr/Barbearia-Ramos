@@ -15,6 +15,9 @@ export type ReservationRow = {
   cancelled_at: string | null;
   cancellation_reason: string | null;
   cancelled_by_email: string | null;
+  rescheduled_at?: string | null;
+  reschedule_reason?: string | null;
+  rescheduled_by_email?: string | null;
   created_at: string;
   customer_name?: string;
   customer_email?: string;
@@ -45,6 +48,9 @@ export const mapReservation = (reservation: ReservationRow) => ({
   cancelledAt: reservation.cancelled_at,
   cancellationReason: reservation.cancellation_reason,
   cancelledByEmail: reservation.cancelled_by_email,
+  rescheduledAt: reservation.rescheduled_at ?? null,
+  rescheduleReason: reservation.reschedule_reason ?? null,
+  rescheduledByEmail: reservation.rescheduled_by_email ?? null,
   customerName: reservation.customer_name,
   customerEmail: reservation.customer_email,
   createdAt: reservation.created_at,

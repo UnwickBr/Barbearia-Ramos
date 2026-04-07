@@ -59,6 +59,9 @@ export const ensureSchema = async () => {
           cancelled_at TIMESTAMPTZ,
           cancellation_reason TEXT,
           cancelled_by_email TEXT,
+          rescheduled_at TIMESTAMPTZ,
+          reschedule_reason TEXT,
+          rescheduled_by_email TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           CONSTRAINT reservations_unique_slot UNIQUE (barber_name, reservation_date, reservation_time)
         )
@@ -69,6 +72,9 @@ export const ensureSchema = async () => {
       await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`;
       await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`;
       await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cancelled_by_email TEXT`;
+      await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS rescheduled_at TIMESTAMPTZ`;
+      await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS reschedule_reason TEXT`;
+      await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS rescheduled_by_email TEXT`;
       await sql`CREATE INDEX IF NOT EXISTS reservations_barber_user_id_idx ON reservations (barber_user_id)`;
       await sql`
         DO $$
