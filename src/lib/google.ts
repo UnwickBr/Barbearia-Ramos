@@ -4,11 +4,17 @@ const GOOGLE_ACCESS_TOKEN_KEY = "barbearia_ramos_google_access_token";
 const GOOGLE_SCOPE_KEY = "barbearia_ramos_google_scopes";
 const GOOGLE_API_TIMEZONE = "America/Sao_Paulo";
 
-export const GOOGLE_BOOKING_SCOPES = [
+export const GOOGLE_CALENDAR_SCOPES = [
   "openid",
   "email",
   "profile",
   "https://www.googleapis.com/auth/calendar.events",
+].join(" ");
+
+export const GOOGLE_EMAIL_SCOPES = [
+  "openid",
+  "email",
+  "profile",
   "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
@@ -20,10 +26,8 @@ export const GOOGLE_LOGIN_SCOPES = [
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
-const GOOGLE_REQUIRED_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events",
-  "https://www.googleapis.com/auth/gmail.send",
-];
+const GOOGLE_CALENDAR_REQUIRED_SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
+const GOOGLE_EMAIL_REQUIRED_SCOPES = ["https://www.googleapis.com/auth/gmail.send"];
 
 const formatCalendarDateTime = (date: Date) => {
   const year = date.getFullYear();
@@ -72,7 +76,9 @@ export const hasStoredGoogleScope = (scope: string) => {
   return scopes.split(/\s+/).includes(scope);
 };
 
-export const hasGoogleBookingScopes = () => GOOGLE_REQUIRED_SCOPES.every((scope) => hasStoredGoogleScope(scope));
+export const hasGoogleCalendarScopes = () => GOOGLE_CALENDAR_REQUIRED_SCOPES.every((scope) => hasStoredGoogleScope(scope));
+
+export const hasGoogleEmailScopes = () => GOOGLE_EMAIL_REQUIRED_SCOPES.every((scope) => hasStoredGoogleScope(scope));
 
 export const ensureGoogleIdentityScript = async () => {
   if (window.google?.accounts?.oauth2) {
@@ -105,7 +111,7 @@ export const ensureGoogleIdentityScript = async () => {
   }
 };
 
-export const requestGoogleBookingAccessToken = async (prompt: "" | "consent" = "consent") => {
+const requestGoogleAccessToken = async (scope: string, prompt: "" | "consent" = "consent") => {
   if (!googleClientId) {
     throw new Error("O login Google nao esta configurado neste ambiente.");
   }
@@ -115,7 +121,7 @@ export const requestGoogleBookingAccessToken = async (prompt: "" | "consent" = "
   return await new Promise<{ accessToken: string; scope?: string }>((resolve, reject) => {
     const tokenClient = window.google?.accounts?.oauth2.initTokenClient({
       client_id: googleClientId,
-      scope: GOOGLE_BOOKING_SCOPES,
+      scope,
       callback: (response) => {
         if (response.error) {
           reject(new Error(response.error));
@@ -142,6 +148,12 @@ export const requestGoogleBookingAccessToken = async (prompt: "" | "consent" = "
     tokenClient.requestAccessToken({ prompt });
   });
 };
+
+export const requestGoogleCalendarAccessToken = async (prompt: "" | "consent" = "consent") =>
+  await requestGoogleAccessToken(GOOGLE_CALENDAR_SCOPES, prompt);
+
+export const requestGoogleEmailAccessToken = async (prompt: "" | "consent" = "consent") =>
+  await requestGoogleAccessToken(GOOGLE_EMAIL_SCOPES, prompt);
 
 export const requestGoogleLoginAccessToken = async (prompt: "" | "consent" = "consent") => {
   if (!googleClientId) {

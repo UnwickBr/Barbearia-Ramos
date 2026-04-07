@@ -13,7 +13,8 @@ import {
   createGoogleCalendarEvent,
   deleteGoogleCalendarEvent,
   getGoogleCalendarEvent,
-  hasGoogleBookingScopes,
+  hasGoogleCalendarScopes,
+  hasGoogleEmailScopes,
   isGoogleAuthError,
   isGoogleNotFoundError,
   sendGmailMessage,
@@ -23,7 +24,7 @@ import { reservationsApi } from "@/lib/api";
 import type { Reservation } from "@/lib/types";
 
 const Agendamentos = () => {
-  const { user, logout, loading, googleAccessToken, connectGoogleServices } = useAuth();
+  const { user, logout, loading, googleAccessToken, connectGoogleCalendar, connectGoogleEmail } = useAuth();
   const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
@@ -100,25 +101,33 @@ const Agendamentos = () => {
     }
   }, [selectedTime, unavailableTimes]);
 
-  const ensureGoogleIntegration = useCallback(async (forceConsent = false) => {
-    if (googleAccessToken && hasGoogleBookingScopes() && !forceConsent) {
+  const ensureGoogleCalendarIntegration = useCallback(async (forceConsent = false) => {
+    if (googleAccessToken && hasGoogleCalendarScopes() && !forceConsent) {
       return googleAccessToken;
     }
 
     toast({
       title: forceConsent ? "Reconecte o Google" : "Conectando Google",
-      description: "Confirme o acesso ao Google Calendar e ao Gmail para sincronizar o agendamento.",
+      description: "Confirme o acesso ao Google Calendar para sincronizar o agendamento.",
     });
 
-    return await connectGoogleServices(forceConsent || !googleAccessToken || !hasGoogleBookingScopes());
-  }, [connectGoogleServices, googleAccessToken]);
+    return await connectGoogleCalendar(forceConsent || !googleAccessToken || !hasGoogleCalendarScopes());
+  }, [connectGoogleCalendar, googleAccessToken]);
+
+  const ensureGoogleEmailIntegration = useCallback(async (forceConsent = false) => {
+    if (googleAccessToken && hasGoogleEmailScopes() && !forceConsent) {
+      return googleAccessToken;
+    }
+
+    return await connectGoogleEmail(forceConsent || !googleAccessToken || !hasGoogleEmailScopes());
+  }, [connectGoogleEmail, googleAccessToken]);
 
   const syncReservationWithGoogle = async (reservation: Reservation) => {
     let updatedReservation = reservation;
     let activeAccessToken: string;
 
     try {
-      activeAccessToken = await ensureGoogleIntegration();
+      activeAccessToken = await ensureGoogleCalendarIntegration();
     } catch (error) {
       toast({
         title: "Reserva salva sem Google",
@@ -156,7 +165,7 @@ const Agendamentos = () => {
     } catch (error) {
       if (isGoogleAuthError(error)) {
         try {
-          activeAccessToken = await ensureGoogleIntegration(true);
+          activeAccessToken = await ensureGoogleCalendarIntegration(true);
           await createAndPersistEvent(activeAccessToken);
         } catch (retryError) {
           toast({
@@ -184,8 +193,9 @@ const Agendamentos = () => {
         updatedReservation.reservationTime,
       );
 
+      const emailAccessToken = await ensureGoogleEmailIntegration();
       await sendGmailMessage({
-        accessToken: activeAccessToken,
+        accessToken: emailAccessToken,
         to: user.email,
         subject: email.subject,
         text: email.text,
@@ -193,7 +203,7 @@ const Agendamentos = () => {
     } catch (error) {
       if (isGoogleAuthError(error)) {
         try {
-          activeAccessToken = await ensureGoogleIntegration(true);
+          const emailAccessToken = await ensureGoogleEmailIntegration(true);
           const email = buildReservationConfirmationEmail(
             updatedReservation.serviceName,
             updatedReservation.barberName,
@@ -202,7 +212,7 @@ const Agendamentos = () => {
           );
 
           await sendGmailMessage({
-            accessToken: activeAccessToken,
+            accessToken: emailAccessToken,
             to: user.email,
             subject: email.subject,
             text: email.text,
@@ -237,7 +247,7 @@ const Agendamentos = () => {
       let activeAccessToken: string;
 
       try {
-        activeAccessToken = await ensureGoogleIntegration();
+        activeAccessToken = await ensureGoogleCalendarIntegration();
       } catch (error) {
         if (!options?.silent) {
           toast({
@@ -326,7 +336,7 @@ const Agendamentos = () => {
           throw error;
         }
 
-        activeAccessToken = await ensureGoogleIntegration(true);
+        activeAccessToken = await ensureGoogleCalendarIntegration(true);
         await applySync(activeAccessToken);
       }
 
@@ -356,7 +366,7 @@ const Agendamentos = () => {
     } finally {
       setSyncingReservationId((current) => (current === reservation.id ? null : current));
     }
-  }, [ensureGoogleIntegration, queryClient, user]);
+  }, [ensureGoogleCalendarIntegration, queryClient, user]);
 
   useEffect(() => {
     if (!user || !reservationsQuery.data || reservationsQuery.data.length === 0) {
@@ -468,12 +478,12 @@ const Agendamentos = () => {
 
     if (reservation.googleCalendarEventId) {
       try {
-        const activeAccessToken = await ensureGoogleIntegration();
+        const activeAccessToken = await ensureGoogleCalendarIntegration();
         await deleteGoogleCalendarEvent(activeAccessToken, reservation.googleCalendarEventId);
       } catch (error) {
         if (isGoogleAuthError(error)) {
           try {
-            const activeAccessToken = await ensureGoogleIntegration(true);
+            const activeAccessToken = await ensureGoogleCalendarIntegration(true);
             await deleteGoogleCalendarEvent(activeAccessToken, reservation.googleCalendarEventId);
           } catch (retryError) {
             toast({
@@ -493,7 +503,7 @@ const Agendamentos = () => {
     }
 
     try {
-      const activeAccessToken = await ensureGoogleIntegration();
+      const emailAccessToken = await ensureGoogleEmailIntegration();
       const email = buildReservationCancellationEmail(
         response.reservation.serviceName,
         response.reservation.barberName,
@@ -502,7 +512,7 @@ const Agendamentos = () => {
       );
 
       await sendGmailMessage({
-        accessToken: activeAccessToken,
+        accessToken: emailAccessToken,
         to: user.email,
         subject: email.subject,
         text: email.text,
@@ -510,7 +520,7 @@ const Agendamentos = () => {
     } catch (error) {
       if (isGoogleAuthError(error)) {
         try {
-          const activeAccessToken = await ensureGoogleIntegration(true);
+          const emailAccessToken = await ensureGoogleEmailIntegration(true);
           const email = buildReservationCancellationEmail(
             response.reservation.serviceName,
             response.reservation.barberName,
@@ -519,7 +529,7 @@ const Agendamentos = () => {
           );
 
           await sendGmailMessage({
-            accessToken: activeAccessToken,
+            accessToken: emailAccessToken,
             to: user.email,
             subject: email.subject,
             text: email.text,

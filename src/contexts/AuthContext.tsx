@@ -3,7 +3,8 @@ import { authApi } from "@/lib/api";
 import {
   clearStoredGoogleAccessToken,
   getStoredGoogleAccessToken,
-  requestGoogleBookingAccessToken,
+  requestGoogleCalendarAccessToken,
+  requestGoogleEmailAccessToken,
   requestGoogleLoginAccessToken,
   storeGoogleAccessToken,
 } from "@/lib/google";
@@ -16,7 +17,8 @@ interface AuthContextType {
   googleAccessToken: string | null;
   loginWithGoogleAccessToken: (accessToken: string, scopes?: string) => Promise<void>;
   loginWithGoogle: (forceConsent?: boolean) => Promise<void>;
-  connectGoogleServices: (forceConsent?: boolean) => Promise<string>;
+  connectGoogleCalendar: (forceConsent?: boolean) => Promise<string>;
+  connectGoogleEmail: (forceConsent?: boolean) => Promise<string>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -69,8 +71,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await loginWithGoogleAccessToken(response.accessToken, response.scope);
   }, [loginWithGoogleAccessToken]);
 
-  const connectGoogleServices = useCallback(async (forceConsent = false) => {
-    const response = await requestGoogleBookingAccessToken(forceConsent ? "consent" : "");
+  const connectGoogleCalendar = useCallback(async (forceConsent = false) => {
+    const response = await requestGoogleCalendarAccessToken(forceConsent ? "consent" : "");
+    await loginWithGoogleAccessToken(response.accessToken, response.scope);
+    return response.accessToken;
+  }, [loginWithGoogleAccessToken]);
+
+  const connectGoogleEmail = useCallback(async (forceConsent = false) => {
+    const response = await requestGoogleEmailAccessToken(forceConsent ? "consent" : "");
     await loginWithGoogleAccessToken(response.accessToken, response.scope);
     return response.accessToken;
   }, [loginWithGoogleAccessToken]);
@@ -93,11 +101,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       googleAccessToken,
       loginWithGoogleAccessToken,
       loginWithGoogle,
-      connectGoogleServices,
+      connectGoogleCalendar,
+      connectGoogleEmail,
       logout,
       refreshUser,
     }),
-    [connectGoogleServices, googleAccessToken, loading, loginWithGoogle, loginWithGoogleAccessToken, user],
+    [connectGoogleCalendar, connectGoogleEmail, googleAccessToken, loading, loginWithGoogle, loginWithGoogleAccessToken, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
