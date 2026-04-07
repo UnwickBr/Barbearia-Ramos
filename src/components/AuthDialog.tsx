@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 type AuthDialogProps = {
@@ -13,6 +14,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
   const { loginWithGoogle } = useAuth();
   const buttonRef = useRef<HTMLDivElement | null>(null);
   const [googleStatus, setGoogleStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!open || !googleClientId || !buttonRef.current) {
@@ -74,13 +76,15 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
     script.async = true;
     script.defer = true;
     script.onload = initializeGoogle;
+    script.onerror = () => setGoogleStatus("error");
     document.head.appendChild(script);
 
     return () => {
       script.onload = null;
+      script.onerror = null;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [loginWithGoogle, onOpenChange, open]);
+  }, [loginWithGoogle, onOpenChange, open, retryKey]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,13 +112,13 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
           )}
 
           {googleStatus === "loading" ? (
-            <p className="mt-4 text-center text-sm text-muted-foreground">
+            <div className="mt-4 rounded-md border border-border bg-background/60 px-4 py-3 text-center text-sm text-muted-foreground">
               Carregando botão do Google...
-            </p>
+            </div>
           ) : null}
 
           {googleStatus === "error" ? (
-            <div className="mt-4 space-y-2 text-sm text-destructive">
+            <div className="mt-4 space-y-3 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               <p>Não foi possível renderizar o botão do Google neste domínio.</p>
               <p>
                 Verifique no Google Cloud se o origin
@@ -125,6 +129,9 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                 {" "}
                 <span className="font-semibold">Authorized JavaScript origins</span>.
               </p>
+              <Button type="button" variant="outline" onClick={() => setRetryKey((value) => value + 1)}>
+                Tentar Novamente
+              </Button>
             </div>
           ) : null}
         </div>
