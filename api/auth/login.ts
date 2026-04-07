@@ -1,8 +1,8 @@
-import { createSessionToken, verifyPassword } from "../_lib/auth";
-import { ensureSchema, sql } from "../_lib/db";
-import { parseJsonBody, sendJson, setCookie } from "../_lib/http";
-import type { ApiRequest, ApiResponse } from "../_lib/types";
-import { mapUser } from "../_lib/user";
+import { createSessionToken, verifyPassword } from "../lib/auth";
+import { ensureSchema, sql } from "../lib/db";
+import { parseJsonBody, sendJson, setCookie } from "../lib/http";
+import type { ApiRequest, ApiResponse } from "../lib/types";
+import { mapUser } from "../lib/user";
 
 type LoginBody = {
   email?: string;

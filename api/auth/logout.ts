@@ -1,5 +1,5 @@
-import { clearCookie, sendJson } from "../_lib/http";
-import type { ApiRequest, ApiResponse } from "../_lib/types";
+import { clearCookie, sendJson } from "../lib/http";
+import type { ApiRequest, ApiResponse } from "../lib/types";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
