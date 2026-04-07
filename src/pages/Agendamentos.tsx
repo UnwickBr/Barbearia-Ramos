@@ -253,6 +253,10 @@ const Agendamentos = () => {
               <Link to="/admin/agendamentos" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Painel admin
               </Link>
+            ) : user.role === "collaborator" ? (
+              <Link to="/colaborador/agendamentos" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Minha agenda
+              </Link>
             ) : null}
             <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-full" />
             <span className="text-sm font-medium">{user.name}</span>

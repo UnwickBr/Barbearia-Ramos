@@ -21,6 +21,8 @@ export const ensureSchema = async () => {
           name TEXT NOT NULL,
           email TEXT NOT NULL UNIQUE,
           is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+          role TEXT NOT NULL DEFAULT 'customer',
+          barber_name TEXT,
           google_sub TEXT UNIQUE,
           password_hash TEXT,
           avatar_url TEXT NOT NULL,
@@ -28,6 +30,8 @@ export const ensureSchema = async () => {
         )
       `;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'customer'`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS barber_name TEXT`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT`;
       await sql`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`;
       await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_unique_idx ON users (google_sub) WHERE google_sub IS NOT NULL`;

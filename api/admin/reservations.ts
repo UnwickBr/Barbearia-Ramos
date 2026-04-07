@@ -13,8 +13,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendJson(res, 401, { error: "Faca login para continuar." });
   }
 
-  if (!user.isAdmin) {
-    return sendJson(res, 403, { error: "Acesso restrito a administradores." });
+  if (!user.isAdmin && user.role !== "collaborator") {
+    return sendJson(res, 403, { error: "Acesso restrito a equipe." });
   }
 
   if (req.method !== "GET") {
@@ -47,6 +47,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     FROM reservations r
     INNER JOIN users u ON u.id = r.user_id
     WHERE r.reservation_date = ${selectedDate}
+      AND (${user.isAdmin} OR r.barber_name = ${user.barberName})
     ORDER BY r.barber_name ASC, r.reservation_time ASC, r.created_at ASC
   `) as ReservationRow[];
 

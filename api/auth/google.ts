@@ -16,6 +16,8 @@ type UserRow = {
   name: string;
   email: string;
   is_admin: boolean;
+  role: "admin" | "collaborator" | "customer";
+  barber_name: string | null;
   avatar_url: string;
   created_at: string;
 };
@@ -42,7 +44,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const isAdmin = isAdminEmail(googleUser.email);
 
     const existingByGoogle = (await sql`
-      SELECT id, name, email, is_admin, avatar_url, created_at
+      SELECT id, name, email, is_admin, role, barber_name, avatar_url, created_at
       FROM users
       WHERE google_sub = ${googleUser.sub}
       LIMIT 1
@@ -52,7 +54,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     if (!userRow) {
       const existingByEmail = (await sql`
-        SELECT id, name, email, is_admin, avatar_url, created_at
+        SELECT id, name, email, is_admin, role, barber_name, avatar_url, created_at
         FROM users
         WHERE email = ${googleUser.email}
         LIMIT 1
@@ -65,17 +67,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             google_sub = ${googleUser.sub},
             name = ${googleUser.name},
             is_admin = ${isAdmin},
+            role = ${isAdmin ? "admin" : existingByEmail[0].role},
             avatar_url = ${googleUser.picture}
           WHERE email = ${googleUser.email}
-          RETURNING id, name, email, is_admin, avatar_url, created_at
+          RETURNING id, name, email, is_admin, role, barber_name, avatar_url, created_at
         `) as UserRow[];
 
         userRow = updated[0];
       } else {
         const created = (await sql`
-          INSERT INTO users (id, name, email, is_admin, google_sub, password_hash, avatar_url)
-          VALUES (${googleUser.sub}, ${googleUser.name}, ${googleUser.email}, ${isAdmin}, ${googleUser.sub}, ${"google-oauth"}, ${googleUser.picture})
-          RETURNING id, name, email, is_admin, avatar_url, created_at
+          INSERT INTO users (id, name, email, is_admin, role, barber_name, google_sub, password_hash, avatar_url)
+          VALUES (${googleUser.sub}, ${googleUser.name}, ${googleUser.email}, ${isAdmin}, ${isAdmin ? "admin" : "customer"}, ${null}, ${googleUser.sub}, ${"google-oauth"}, ${googleUser.picture})
+          RETURNING id, name, email, is_admin, role, barber_name, avatar_url, created_at
         `) as UserRow[];
 
         userRow = created[0];
@@ -87,9 +90,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           name = ${googleUser.name},
           email = ${googleUser.email},
           is_admin = ${isAdmin},
+          role = ${isAdmin ? "admin" : existingByGoogle[0].role},
           avatar_url = ${googleUser.picture}
         WHERE google_sub = ${googleUser.sub}
-        RETURNING id, name, email, is_admin, avatar_url, created_at
+        RETURNING id, name, email, is_admin, role, barber_name, avatar_url, created_at
       `) as UserRow[];
 
       userRow = refreshed[0];

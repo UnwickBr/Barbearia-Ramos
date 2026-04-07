@@ -1,4 +1,4 @@
-import type { Reservation, User } from "@/lib/types";
+import type { EmployeeDashboardStat, Reservation, User } from "@/lib/types";
 
 type JsonRequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -57,4 +57,11 @@ export const reservationsApi = {
 
 export const adminApi = {
   listReservations: (date: string) => apiRequest<{ date: string; reservations: Reservation[] }>(`/api/admin/reservations?date=${encodeURIComponent(date)}`),
+  listUsers: (search: string) => apiRequest<{ users: User[] }>(`/api/admin/users?search=${encodeURIComponent(search)}`),
+  updateUser: (userId: string, payload: { role: "admin" | "collaborator" | "customer"; barberName?: string | null }) =>
+    apiRequest<{ user: User }>(`/api/admin/users/${userId}`, { method: "PATCH", body: payload }),
+  dashboard: (period: "day" | "week" | "month", date: string) =>
+    apiRequest<{ period: string; startDate: string; endDate: string; stats: EmployeeDashboardStat[] }>(
+      `/api/admin/dashboard?period=${encodeURIComponent(period)}&date=${encodeURIComponent(date)}`,
+    ),
 };

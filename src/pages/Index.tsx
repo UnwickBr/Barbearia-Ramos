@@ -50,6 +50,13 @@ const Index = () => {
                   >
                     Painel admin
                   </Link>
+                ) : user.role === "collaborator" ? (
+                  <Link
+                    to="/colaborador/agendamentos"
+                    className="text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Minha agenda
+                  </Link>
                 ) : null}
                 <Link
                   to="/agendamentos"

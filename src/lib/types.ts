@@ -3,6 +3,8 @@ export interface User {
   name: string;
   email: string;
   isAdmin: boolean;
+  role: "admin" | "collaborator" | "customer";
+  barberName: string | null;
   avatarUrl: string;
   createdAt: string;
 }
@@ -25,4 +27,12 @@ export interface Reservation {
   customerName?: string;
   customerEmail?: string;
   createdAt: string;
+}
+
+export interface EmployeeDashboardStat {
+  barberName: string;
+  totalRevenue: number;
+  pendingCount: number;
+  completedCount: number;
+  cancelledCount: number;
 }
