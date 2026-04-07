@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,14 +12,19 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefin
 export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
   const { loginWithGoogle } = useAuth();
   const buttonRef = useRef<HTMLDivElement | null>(null);
+  const [googleStatus, setGoogleStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
 
   useEffect(() => {
     if (!open || !googleClientId || !buttonRef.current) {
       return;
     }
 
+    setGoogleStatus("loading");
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
     const initializeGoogle = () => {
       if (!window.google || !buttonRef.current) {
+        setGoogleStatus("error");
         return;
       }
 
@@ -40,18 +45,28 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
         width: 320,
         logo_alignment: "left",
       });
+
+      timeoutId = setTimeout(() => {
+        const hasRenderedContent = Boolean(buttonRef.current?.childElementCount);
+        setGoogleStatus(hasRenderedContent ? "ready" : "error");
+      }, 1200);
     };
 
     if (window.google) {
       initializeGoogle();
-      return;
+      return () => {
+        if (timeoutId) clearTimeout(timeoutId);
+      };
     }
 
     const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
 
     if (existingScript) {
       existingScript.addEventListener("load", initializeGoogle, { once: true });
-      return () => existingScript.removeEventListener("load", initializeGoogle);
+      return () => {
+        existingScript.removeEventListener("load", initializeGoogle);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
     }
 
     const script = document.createElement("script");
@@ -63,6 +78,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
 
     return () => {
       script.onload = null;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [loginWithGoogle, onOpenChange, open]);
 
@@ -82,7 +98,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
           </p>
 
           {googleClientId ? (
-            <div className="flex justify-center">
+            <div className="flex min-h-12 justify-center">
               <div ref={buttonRef} />
             </div>
           ) : (
@@ -90,6 +106,27 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
               O login Google não está configurado neste ambiente.
             </p>
           )}
+
+          {googleStatus === "loading" ? (
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Carregando botão do Google...
+            </p>
+          ) : null}
+
+          {googleStatus === "error" ? (
+            <div className="mt-4 space-y-2 text-sm text-destructive">
+              <p>Não foi possível renderizar o botão do Google neste domínio.</p>
+              <p>
+                Verifique no Google Cloud se o origin
+                {" "}
+                <span className="font-semibold">https://barbearia-ramos-demo.vercel.app</span>
+                {" "}
+                está cadastrado em
+                {" "}
+                <span className="font-semibold">Authorized JavaScript origins</span>.
+              </p>
+            </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
