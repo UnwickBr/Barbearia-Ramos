@@ -20,6 +20,7 @@ DATABASE_URL="postgres://..."
 SESSION_SECRET="um-segredo-longo-e-aleatorio"
 GOOGLE_CLIENT_ID="seu-client-id.apps.googleusercontent.com"
 VITE_GOOGLE_CLIENT_ID="seu-client-id.apps.googleusercontent.com"
+ADMIN_EMAILS="fariavictor2011@gmail.com"
 ```
 
 ## Banco de dados
@@ -71,6 +72,7 @@ npm test
 - `POST /api/reservations`
 - `PATCH /api/reservations/:id`
 - `DELETE /api/reservations/:id`
+- `GET /api/admin/reservations`
 
 ## Deploy
 

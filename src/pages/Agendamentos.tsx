@@ -249,6 +249,11 @@ const Agendamentos = () => {
             <Link to="/agendamentos#minhas-reservas" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
               Meus agendamentos
             </Link>
+            {user.isAdmin ? (
+              <Link to="/admin/agendamentos" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Painel admin
+              </Link>
+            ) : null}
             <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-full" />
             <span className="text-sm font-medium">{user.name}</span>
             <button onClick={() => void logout()} className="text-sm text-muted-foreground transition-colors hover:text-foreground">

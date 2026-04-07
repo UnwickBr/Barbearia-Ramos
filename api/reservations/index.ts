@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { barbers, servicesById, timeSlots } from "../../server/barbershop.js";
 import { ensureSchema, sql } from "../../server/db.js";
 import { parseJsonBody, sendJson } from "../../server/http.js";
+import { mapReservation, type ReservationRow } from "../../server/reservations.js";
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
 import { getAuthenticatedUser } from "../../server/user.js";
 
@@ -11,47 +12,6 @@ type ReservationBody = {
   reservationDate?: string;
   reservationTime?: string;
 };
-
-type ReservationRow = {
-  id: string;
-  service_id: string;
-  service_name: string;
-  service_price: string;
-  service_duration_minutes: number;
-  barber_name: string;
-  reservation_date: string | Date;
-  reservation_time: string;
-  status: string;
-  google_calendar_event_id: string | null;
-  google_calendar_event_link: string | null;
-  cancelled_at: string | null;
-  created_at: string;
-};
-
-const extractDateString = (value: string | Date) => {
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
-  }
-
-  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] : String(value);
-};
-
-const mapReservation = (reservation: ReservationRow) => ({
-  id: reservation.id,
-  serviceId: reservation.service_id,
-  serviceName: reservation.service_name,
-  servicePrice: Number(reservation.service_price),
-  serviceDurationMinutes: reservation.service_duration_minutes,
-  barberName: reservation.barber_name,
-  reservationDate: extractDateString(reservation.reservation_date),
-  reservationTime: reservation.reservation_time.slice(0, 5),
-  status: reservation.status,
-  googleCalendarEventId: reservation.google_calendar_event_id,
-  googleCalendarEventLink: reservation.google_calendar_event_link,
-  cancelledAt: reservation.cancelled_at,
-  createdAt: reservation.created_at,
-});
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
@@ -101,6 +61,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         google_calendar_event_id,
         google_calendar_event_link,
         cancelled_at,
+        cancellation_reason,
+        cancelled_by_email,
         created_at
       FROM reservations
       WHERE user_id = ${user.id}
@@ -191,6 +153,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           google_calendar_event_id,
           google_calendar_event_link,
           cancelled_at,
+          cancellation_reason,
+          cancelled_by_email,
           created_at
       `) as ReservationRow[];
 

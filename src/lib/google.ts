@@ -195,3 +195,25 @@ export const buildReservationCancellationEmail = (serviceName: string, barberNam
     "Se quiser, voce pode agendar um novo horario pelo site.",
   ].join("\n"),
 });
+
+export const buildAdminCancellationEmail = (
+  serviceName: string,
+  barberName: string,
+  reservationDate: string,
+  reservationTime: string,
+  justification: string,
+) => ({
+  subject: "Seu agendamento foi cancelado pela Barbearia Ramos",
+  text: [
+    "Seu agendamento foi cancelado por um administrador da Barbearia Ramos.",
+    "",
+    `Servico: ${serviceName}`,
+    `Barbeiro: ${barberName}`,
+    `Data: ${formatReservationDateTime(reservationDate, reservationTime)}`,
+    "",
+    "Justificativa:",
+    justification,
+    "",
+    "Se precisar, entre em contato para remarcar.",
+  ].join("\n"),
+});

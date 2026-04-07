@@ -41,5 +41,10 @@ export const reservationsApi = {
     apiRequest<{ reservation: Reservation }>("/api/reservations", { method: "POST", body: payload }),
   attachCalendarEvent: (reservationId: string, payload: { googleCalendarEventId: string; googleCalendarEventLink?: string | null }) =>
     apiRequest<{ reservation: Reservation }>(`/api/reservations/${reservationId}`, { method: "PATCH", body: payload }),
-  cancel: (reservationId: string) => apiRequest<{ reservation: Reservation }>(`/api/reservations/${reservationId}`, { method: "DELETE" }),
+  cancel: (reservationId: string, payload?: { cancellationReason?: string }) =>
+    apiRequest<{ reservation: Reservation }>(`/api/reservations/${reservationId}`, { method: "DELETE", body: payload }),
+};
+
+export const adminApi = {
+  listReservations: (date: string) => apiRequest<{ date: string; reservations: Reservation[] }>(`/api/admin/reservations?date=${encodeURIComponent(date)}`),
 };

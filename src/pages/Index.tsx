@@ -43,6 +43,14 @@ const Index = () => {
                 >
                   Meus agendamentos
                 </Link>
+                {user.isAdmin ? (
+                  <Link
+                    to="/admin/agendamentos"
+                    className="text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Painel admin
+                  </Link>
+                ) : null}
                 <Link
                   to="/agendamentos"
                   className="bg-foreground px-5 py-2 text-xs font-semibold uppercase tracking-widest text-background transition-colors hover:bg-foreground/80"
