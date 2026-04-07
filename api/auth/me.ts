@@ -1,7 +1,7 @@
-import { ensureSchema } from "../lib/db";
-import { sendJson } from "../lib/http";
-import type { ApiRequest, ApiResponse } from "../lib/types";
-import { getAuthenticatedUser } from "../lib/user";
+import { ensureSchema } from "../../server/db";
+import { sendJson } from "../../server/http";
+import type { ApiRequest, ApiResponse } from "../../server/types";
+import { getAuthenticatedUser } from "../../server/user";
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "GET") {

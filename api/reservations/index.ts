@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { barbers, servicesById, timeSlots } from "../lib/barbershop";
-import { ensureSchema, sql } from "../lib/db";
-import { parseJsonBody, sendJson } from "../lib/http";
-import type { ApiRequest, ApiResponse } from "../lib/types";
-import { getAuthenticatedUser } from "../lib/user";
+import { barbers, servicesById, timeSlots } from "../../server/barbershop";
+import { ensureSchema, sql } from "../../server/db";
+import { parseJsonBody, sendJson } from "../../server/http";
+import type { ApiRequest, ApiResponse } from "../../server/types";
+import { getAuthenticatedUser } from "../../server/user";
 
 type ReservationBody = {
   serviceId?: string;

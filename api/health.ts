@@ -1,5 +1,5 @@
-import { sendJson } from "./lib/http";
-import type { ApiRequest, ApiResponse } from "./lib/types";
+import { sendJson } from "../server/http";
+import type { ApiRequest, ApiResponse } from "../server/types";
 
 export default async function handler(_req: ApiRequest, res: ApiResponse) {
   const env = {
@@ -9,7 +9,7 @@ export default async function handler(_req: ApiRequest, res: ApiResponse) {
   };
 
   try {
-    const { ensureSchema, sql } = await import("./lib/db");
+    const { ensureSchema, sql } = await import("../server/db");
     await ensureSchema();
     const result = await sql`SELECT NOW() as now`;
 
