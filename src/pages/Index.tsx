@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Clock, MapPin, Phone } from "lucide-react";
 import { AuthDialog } from "@/components/AuthDialog";
 import logoRamos from "@/assets/logo-ramos.png";
-import heroImage from "@/assets/hero-barbershop.jpg";
+import heroImage from "@/assets/hero-barbershop.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { services } from "@/lib/barbershop";
 
@@ -68,8 +68,14 @@ const Index = () => {
 
       <section className="relative flex h-screen items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <img src={heroImage} alt="Barbearia" className="h-full w-full object-cover grayscale" width={1920} height={1080} />
-          <div className="absolute inset-0 bg-background/80" />
+          <img
+            src={heroImage}
+            alt="Interior da Barbearia Ramos"
+            className="h-full w-full object-cover grayscale brightness-[0.35] contrast-125"
+            width={1920}
+            height={1080}
+          />
+          <div className="absolute inset-0 bg-background/70" />
         </div>
 
         <motion.div
