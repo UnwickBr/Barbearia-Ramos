@@ -252,7 +252,45 @@ const Agendamentos = () => {
       let updatedReservation = reservation;
 
       const applySync = async (token: string) => {
+        const createVerifiedEvent = async () => {
+          const createdEvent = await createGoogleCalendarEvent({
+            accessToken: token,
+            serviceName: reservation.serviceName,
+            barberName: reservation.barberName,
+            reservationDate: reservation.reservationDate,
+            reservationTime: reservation.reservationTime,
+            serviceDurationMinutes: reservation.serviceDurationMinutes,
+            userEmail: user.email,
+          });
+
+          return await getGoogleCalendarEvent(token, createdEvent.eventId);
+        };
+
+        const persistCalendarEvent = async (eventId: string, eventLink: string | null) => {
+          const response = await reservationsApi.attachCalendarEvent(reservation.id, {
+            googleCalendarEventId: eventId,
+            googleCalendarEventLink: eventLink,
+          });
+
+          updatedReservation = response.reservation;
+        };
+
         if (reservation.googleCalendarEventId) {
+          if (reservation.rescheduledAt) {
+            const previousEventId = reservation.googleCalendarEventId;
+            const verifiedEvent = await createVerifiedEvent();
+
+            try {
+              await deleteGoogleCalendarEvent(token, previousEventId);
+            } catch (error) {
+              await deleteGoogleCalendarEvent(token, verifiedEvent.eventId).catch(() => undefined);
+              throw error;
+            }
+
+            await persistCalendarEvent(verifiedEvent.eventId, verifiedEvent.eventLink);
+            return;
+          }
+
           try {
             const event = await updateGoogleCalendarEvent({
               accessToken: token,
@@ -266,53 +304,18 @@ const Agendamentos = () => {
             });
 
             const verifiedEvent = await getGoogleCalendarEvent(token, event.eventId);
-            const response = await reservationsApi.attachCalendarEvent(reservation.id, {
-              googleCalendarEventId: verifiedEvent.eventId,
-              googleCalendarEventLink: verifiedEvent.eventLink,
-            });
-
-            updatedReservation = response.reservation;
+            await persistCalendarEvent(verifiedEvent.eventId, verifiedEvent.eventLink);
           } catch (error) {
             if (!isGoogleNotFoundError(error)) {
               throw error;
             }
 
-            const createdEvent = await createGoogleCalendarEvent({
-              accessToken: token,
-              serviceName: reservation.serviceName,
-              barberName: reservation.barberName,
-              reservationDate: reservation.reservationDate,
-              reservationTime: reservation.reservationTime,
-              serviceDurationMinutes: reservation.serviceDurationMinutes,
-              userEmail: user.email,
-            });
-
-            const verifiedEvent = await getGoogleCalendarEvent(token, createdEvent.eventId);
-            const response = await reservationsApi.attachCalendarEvent(reservation.id, {
-              googleCalendarEventId: verifiedEvent.eventId,
-              googleCalendarEventLink: verifiedEvent.eventLink,
-            });
-
-            updatedReservation = response.reservation;
+            const verifiedEvent = await createVerifiedEvent();
+            await persistCalendarEvent(verifiedEvent.eventId, verifiedEvent.eventLink);
           }
         } else {
-          const event = await createGoogleCalendarEvent({
-            accessToken: token,
-            serviceName: reservation.serviceName,
-            barberName: reservation.barberName,
-            reservationDate: reservation.reservationDate,
-            reservationTime: reservation.reservationTime,
-            serviceDurationMinutes: reservation.serviceDurationMinutes,
-            userEmail: user.email,
-          });
-
-          const verifiedEvent = await getGoogleCalendarEvent(token, event.eventId);
-          const response = await reservationsApi.attachCalendarEvent(reservation.id, {
-            googleCalendarEventId: verifiedEvent.eventId,
-            googleCalendarEventLink: verifiedEvent.eventLink,
-          });
-
-          updatedReservation = response.reservation;
+          const verifiedEvent = await createVerifiedEvent();
+          await persistCalendarEvent(verifiedEvent.eventId, verifiedEvent.eventLink);
         }
       };
 
