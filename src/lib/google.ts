@@ -153,6 +153,15 @@ export const isGoogleAuthError = (error: unknown) => {
   );
 };
 
+export const isGoogleNotFoundError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return message.includes("not found") || message.includes("404");
+};
+
 type CalendarPayload = {
   accessToken: string;
   serviceName: string;
@@ -280,6 +289,26 @@ export const deleteGoogleCalendarEvent = async (accessToken: string, eventId: st
     const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
     throw new Error(data.error?.message || "Nao foi possivel remover o evento do Google Calendar.");
   }
+};
+
+export const getGoogleCalendarEvent = async (accessToken: string, eventId: string) => {
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const data = (await response.json().catch(() => ({}))) as { id?: string; htmlLink?: string; error?: { message?: string } };
+
+  if (!response.ok || !data.id) {
+    throw new Error(data.error?.message || "Nao foi possivel confirmar o evento no Google Calendar.");
+  }
+
+  return {
+    eventId: data.id,
+    eventLink: data.htmlLink ?? null,
+  };
 };
 
 type EmailPayload = {
