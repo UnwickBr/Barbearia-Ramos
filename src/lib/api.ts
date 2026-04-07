@@ -1,7 +1,7 @@
 import type { Reservation, User } from "@/lib/types";
 
 type JsonRequestOptions = {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
 };
 
@@ -35,4 +35,7 @@ export const reservationsApi = {
   list: () => apiRequest<{ reservations: Reservation[] }>("/api/reservations"),
   create: (payload: { serviceId: string; barberName: string; reservationDate: string; reservationTime: string }) =>
     apiRequest<{ reservation: Reservation }>("/api/reservations", { method: "POST", body: payload }),
+  attachCalendarEvent: (reservationId: string, payload: { googleCalendarEventId: string; googleCalendarEventLink?: string | null }) =>
+    apiRequest<{ reservation: Reservation }>(`/api/reservations/${reservationId}`, { method: "PATCH", body: payload }),
+  cancel: (reservationId: string) => apiRequest<{ reservation: Reservation }>(`/api/reservations/${reservationId}`, { method: "DELETE" }),
 };

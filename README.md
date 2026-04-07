@@ -1,6 +1,6 @@
 # Barbearia Ramos
 
-Site institucional com autenticação exclusiva via Google e reservas persistidas no NeonDB, pronto para deploy na Vercel.
+Site institucional com autenticacao exclusiva via Google e reservas persistidas no NeonDB, pronto para deploy na Vercel.
 
 ## Stack
 
@@ -8,8 +8,10 @@ Site institucional com autenticação exclusiva via Google e reservas persistida
 - Vercel Functions
 - Neon Postgres
 - Google Identity Services
+- Google Calendar API
+- Gmail API
 
-## Variáveis de ambiente
+## Variaveis de ambiente
 
 Crie um `.env` local a partir de `.env.example`.
 
@@ -22,12 +24,18 @@ VITE_GOOGLE_CLIENT_ID="seu-client-id.apps.googleusercontent.com"
 
 ## Banco de dados
 
-O schema base está em `neon/schema.sql`.
+O schema base esta em `neon/schema.sql`.
 
-As tabelas também são criadas automaticamente pelas funções da API no primeiro uso:
+As tabelas sao criadas automaticamente pelas funcoes da API no primeiro uso:
 
 - `users`
 - `reservations`
+
+As reservas guardam tambem:
+
+- `google_calendar_event_id`
+- `google_calendar_event_link`
+- `cancelled_at`
 
 ## Rodando localmente
 
@@ -38,14 +46,14 @@ npm install
 npm run dev
 ```
 
-Para frontend + funções `/api`:
+Para frontend + funcoes `/api`:
 
 ```bash
 npm install
 npm run dev:full
 ```
 
-## Scripts úteis
+## Scripts uteis
 
 ```bash
 npm run build
@@ -61,7 +69,16 @@ npm test
 - `GET /api/auth/me`
 - `GET /api/reservations`
 - `POST /api/reservations`
+- `PATCH /api/reservations/:id`
+- `DELETE /api/reservations/:id`
 
 ## Deploy
 
-Na Vercel, configure as variáveis `DATABASE_URL`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID` e `VITE_GOOGLE_CLIENT_ID` no projeto antes do próximo deploy.
+Na Vercel, configure as variaveis `DATABASE_URL`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID` e `VITE_GOOGLE_CLIENT_ID` no projeto antes do deploy.
+
+Para a sincronizacao com Google Calendar e Gmail funcionar em producao, habilite no Google Cloud:
+
+- `Google Calendar API`
+- `Gmail API`
+
+Se a tela de consentimento OAuth estiver em modo de teste, adicione seu proprio e-mail como usuario de teste.

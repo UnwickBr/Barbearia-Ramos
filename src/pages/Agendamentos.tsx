@@ -2,15 +2,23 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Check, Clock, LoaderCircle, Scissors } from "lucide-react";
+import { ArrowLeft, Calendar, CalendarCheck2, Check, Clock, LoaderCircle, Scissors, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { reservationsApi } from "@/lib/api";
-import { barbers, services, timeSlots } from "@/lib/barbershop";
-import type { Reservation } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
+import { barbers, services, timeSlots } from "@/lib/barbershop";
+import { formatReservationDate } from "@/lib/dates";
+import {
+  buildReservationCancellationEmail,
+  buildReservationConfirmationEmail,
+  createGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
+  sendGmailMessage,
+} from "@/lib/google";
+import { reservationsApi } from "@/lib/api";
+import type { Reservation } from "@/lib/types";
 
 const Agendamentos = () => {
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, googleAccessToken } = useAuth();
   const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<string | null>(null);
@@ -31,13 +39,13 @@ const Agendamentos = () => {
 
   const createReservation = useMutation({
     mutationFn: reservationsApi.create,
+  });
+
+  const cancelReservation = useMutation({
+    mutationFn: reservationsApi.cancel,
     onSuccess: (data) => {
-      setConfirmedReservation(data.reservation);
+      setConfirmedReservation((current) => (current?.id === data.reservation.id ? data.reservation : current));
       void queryClient.invalidateQueries({ queryKey: ["reservations", user?.id] });
-      toast({
-        title: "Reserva confirmada",
-        description: "Seu horário foi salvo no sistema.",
-      });
     },
   });
 
@@ -58,16 +66,144 @@ const Agendamentos = () => {
     return <Navigate to="/" replace />;
   }
 
+  const syncReservationWithGoogle = async (reservation: Reservation) => {
+    if (!googleAccessToken) {
+      toast({
+        title: "Reserva salva",
+        description: "O horario foi salvo, mas o token do Google nao estava ativo para sincronizar calendario e e-mail.",
+      });
+      return reservation;
+    }
+
+    let updatedReservation = reservation;
+
+    try {
+      const calendarEvent = await createGoogleCalendarEvent({
+        accessToken: googleAccessToken,
+        serviceName: reservation.serviceName,
+        barberName: reservation.barberName,
+        reservationDate: reservation.reservationDate,
+        reservationTime: reservation.reservationTime,
+        serviceDurationMinutes: reservation.serviceDurationMinutes,
+        userEmail: user.email,
+      });
+
+      const response = await reservationsApi.attachCalendarEvent(reservation.id, {
+        googleCalendarEventId: calendarEvent.eventId,
+        googleCalendarEventLink: calendarEvent.eventLink,
+      });
+
+      updatedReservation = response.reservation;
+    } catch (error) {
+      toast({
+        title: "Reserva salva sem Google Calendar",
+        description: error instanceof Error ? error.message : "Nao foi possivel criar o evento no Google Calendar.",
+        variant: "destructive",
+      });
+      return updatedReservation;
+    }
+
+    try {
+      const email = buildReservationConfirmationEmail(
+        updatedReservation.serviceName,
+        updatedReservation.barberName,
+        updatedReservation.reservationDate,
+        updatedReservation.reservationTime,
+      );
+
+      await sendGmailMessage({
+        accessToken: googleAccessToken,
+        to: user.email,
+        subject: email.subject,
+        text: email.text,
+      });
+    } catch (error) {
+      toast({
+        title: "Evento criado, mas sem e-mail",
+        description: error instanceof Error ? error.message : "Nao foi possivel enviar o e-mail de confirmacao.",
+        variant: "destructive",
+      });
+    }
+
+    return updatedReservation;
+  };
+
   const handleConfirm = async () => {
     if (!canConfirm || !selectedService || !selectedBarber || !selectedDate || !selectedTime) {
       return;
     }
 
-    await createReservation.mutateAsync({
+    const data = await createReservation.mutateAsync({
       serviceId: selectedService,
       barberName: selectedBarber,
       reservationDate: selectedDate,
       reservationTime: selectedTime,
+    });
+
+    const syncedReservation = await syncReservationWithGoogle(data.reservation);
+    setConfirmedReservation(syncedReservation);
+    setSelectedService(null);
+    setSelectedBarber(null);
+    setSelectedDate("");
+    setSelectedTime(null);
+    void queryClient.invalidateQueries({ queryKey: ["reservations", user?.id] });
+
+    toast({
+      title: "Reserva confirmada",
+      description: syncedReservation.googleCalendarEventId
+        ? "Seu horario foi salvo e sincronizado com o Google."
+        : "Seu horario foi salvo no sistema.",
+    });
+  };
+
+  const handleCancelReservation = async (reservation: Reservation) => {
+    const confirmed = window.confirm("Deseja cancelar este agendamento?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    if (reservation.googleCalendarEventId && googleAccessToken) {
+      try {
+        await deleteGoogleCalendarEvent(googleAccessToken, reservation.googleCalendarEventId);
+      } catch (error) {
+        toast({
+          title: "Reserva cancelada no site",
+          description: error instanceof Error ? error.message : "Nao foi possivel remover o evento do Google Calendar.",
+          variant: "destructive",
+        });
+      }
+    }
+
+    const response = await cancelReservation.mutateAsync(reservation.id);
+
+    if (googleAccessToken) {
+      try {
+        const email = buildReservationCancellationEmail(
+          response.reservation.serviceName,
+          response.reservation.barberName,
+          response.reservation.reservationDate,
+          response.reservation.reservationTime,
+        );
+
+        await sendGmailMessage({
+          accessToken: googleAccessToken,
+          to: user.email,
+          subject: email.subject,
+          text: email.text,
+        });
+      } catch (error) {
+        toast({
+          title: "Cancelado sem e-mail",
+          description: error instanceof Error ? error.message : "Nao foi possivel enviar o e-mail de cancelamento.",
+          variant: "destructive",
+        });
+      }
+    }
+
+    toast({
+      title: "Agendamento cancelado",
+      description: "O horario foi liberado novamente.",
     });
   };
 
@@ -78,10 +214,13 @@ const Agendamentos = () => {
           <Link to="/" className="font-display text-2xl font-bold tracking-wide text-primary">
             BARBEARIA <span className="text-foreground">RAMOS</span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <Link to="/agendamentos#minhas-reservas" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+              Meus agendamentos
+            </Link>
             <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-full" />
             <span className="text-sm font-medium">{user.name}</span>
-            <button onClick={() => void logout()} className="ml-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <button onClick={() => void logout()} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
               Sair
             </button>
           </div>
@@ -94,9 +233,9 @@ const Agendamentos = () => {
         </Link>
 
         <h1 className="mb-2 font-display text-4xl font-bold">
-          Agendar <span className="text-primary">Horário</span>
+          Agendar <span className="text-primary">Horario</span>
         </h1>
-        <p className="mb-10 text-muted-foreground">Escolha o serviço, barbeiro, data e horário.</p>
+        <p className="mb-10 text-muted-foreground">Escolha o servico, barbeiro, data e horario.</p>
 
         {confirmedReservation ? (
           <motion.div
@@ -110,13 +249,17 @@ const Agendamentos = () => {
               </div>
               <div>
                 <h2 className="font-display text-2xl font-bold">Reserva confirmada</h2>
-                <p className="text-sm text-muted-foreground">Seus dados já foram salvos no banco.</p>
+                <p className="text-sm text-muted-foreground">
+                  {confirmedReservation.googleCalendarEventId
+                    ? "Seus dados foram salvos e o evento entrou no Google."
+                    : "Seus dados ja foram salvos no sistema."}
+                </p>
               </div>
             </div>
 
             <div className="grid gap-3 rounded-md bg-secondary/50 p-4 md:grid-cols-2">
               <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Serviço</span>
+                <span className="text-muted-foreground">Servico</span>
                 <span className="font-semibold">{confirmedReservation.serviceName}</span>
               </div>
               <div className="flex justify-between gap-4">
@@ -125,21 +268,30 @@ const Agendamentos = () => {
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Data</span>
-                <span className="font-semibold">
-                  {new Date(`${confirmedReservation.reservationDate}T12:00:00`).toLocaleDateString("pt-BR")}
-                </span>
+                <span className="font-semibold">{formatReservationDate(confirmedReservation.reservationDate)}</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Horário</span>
+                <span className="text-muted-foreground">Horario</span>
                 <span className="font-semibold">{confirmedReservation.reservationTime}</span>
               </div>
             </div>
+
+            {confirmedReservation.googleCalendarEventLink ? (
+              <a
+                href={confirmedReservation.googleCalendarEventLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+              >
+                <CalendarCheck2 className="h-4 w-4" /> Abrir no Google Calendar
+              </a>
+            ) : null}
           </motion.div>
         ) : null}
 
         <div className="mb-10">
           <h3 className="mb-4 flex items-center gap-2 font-display text-xl font-semibold">
-            <Scissors className="h-5 w-5 text-primary" /> Serviço
+            <Scissors className="h-5 w-5 text-primary" /> Servico
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((service) => (
@@ -200,7 +352,7 @@ const Agendamentos = () => {
 
         <div className="mb-12">
           <h3 className="mb-4 flex items-center gap-2 font-display text-xl font-semibold">
-            <Clock className="h-5 w-5 text-primary" /> Horário
+            <Clock className="h-5 w-5 text-primary" /> Horario
           </h3>
           <div className="flex flex-wrap gap-2">
             {timeSlots.map((time) => (
@@ -231,14 +383,18 @@ const Agendamentos = () => {
           {createReservation.isPending ? "Salvando..." : "Confirmar Agendamento"}
         </button>
 
-        {createReservation.isError ? (
-          <p className="mt-4 text-sm text-destructive">{createReservation.error.message}</p>
+        {selectedServiceData ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            O evento vai ocupar {selectedServiceData.duration} com {selectedBarber || "o barbeiro escolhido"}.
+          </p>
         ) : null}
 
-        <section className="mt-16 border-t border-border pt-10">
+        {createReservation.isError ? <p className="mt-4 text-sm text-destructive">{createReservation.error.message}</p> : null}
+
+        <section id="minhas-reservas" className="mt-16 border-t border-border pt-10">
           <div className="mb-6">
             <h2 className="font-display text-3xl font-bold">Minhas reservas</h2>
-              <p className="text-muted-foreground">Agendamentos vinculados ao seu login.</p>
+            <p className="text-muted-foreground">Agendamentos vinculados ao seu login.</p>
           </div>
 
           {reservationsQuery.isLoading ? (
@@ -248,26 +404,62 @@ const Agendamentos = () => {
             </div>
           ) : reservationsQuery.data && reservationsQuery.data.length > 0 ? (
             <div className="grid gap-4">
-              {reservationsQuery.data.map((reservation) => (
-                <div key={reservation.id} className="rounded-lg border border-border bg-card p-5">
-                  <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                    <h3 className="font-display text-xl font-semibold">{reservation.serviceName}</h3>
-                    <span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary">
-                      {reservation.status}
-                    </span>
+              {reservationsQuery.data.map((reservation) => {
+                const isCancelled = reservation.status === "cancelled";
+
+                return (
+                  <div key={reservation.id} className="rounded-lg border border-border bg-card p-5">
+                    <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <h3 className="font-display text-xl font-semibold">{reservation.serviceName}</h3>
+                        <div className="mt-2 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                          <span>Barbeiro: {reservation.barberName}</span>
+                          <span>Horario: {reservation.reservationTime}</span>
+                          <span>Data: {formatReservationDate(reservation.reservationDate)}</span>
+                          <span>Valor: R$ {reservation.servicePrice.toFixed(2).replace(".", ",")}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-start gap-3 md:items-end">
+                        <span
+                          className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest ${
+                            isCancelled ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+                          }`}
+                        >
+                          {reservation.status}
+                        </span>
+
+                        <div className="flex flex-wrap gap-2">
+                          {reservation.googleCalendarEventLink && !isCancelled ? (
+                            <a
+                              href={reservation.googleCalendarEventLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:text-foreground"
+                            >
+                              <CalendarCheck2 className="h-4 w-4" /> Ver no Google
+                            </a>
+                          ) : null}
+
+                          {!isCancelled ? (
+                            <button
+                              onClick={() => void handleCancelReservation(reservation)}
+                              disabled={cancelReservation.isPending}
+                              className="inline-flex items-center gap-2 rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <X className="h-4 w-4" /> Cancelar
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                    <span>Barbeiro: {reservation.barberName}</span>
-                    <span>Horario: {reservation.reservationTime}</span>
-                    <span>Data: {new Date(`${reservation.reservationDate}T12:00:00`).toLocaleDateString("pt-BR")}</span>
-                    <span>Valor: R$ {reservation.servicePrice.toFixed(2).replace(".", ",")}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border bg-card/40 p-6 text-muted-foreground">
-              Você ainda não tem reservas salvas.
+              Voce ainda nao tem reservas salvas.
             </div>
           )}
         </section>

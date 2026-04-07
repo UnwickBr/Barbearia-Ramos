@@ -41,9 +41,32 @@ export const ensureSchema = async () => {
           reservation_date DATE NOT NULL,
           reservation_time TIME NOT NULL,
           status TEXT NOT NULL DEFAULT 'confirmed',
+          google_calendar_event_id TEXT,
+          google_calendar_event_link TEXT,
+          cancelled_at TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           CONSTRAINT reservations_unique_slot UNIQUE (barber_name, reservation_date, reservation_time)
         )
+      `;
+      await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS google_calendar_event_id TEXT`;
+      await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS google_calendar_event_link TEXT`;
+      await sql`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`;
+      await sql`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'reservations_unique_slot'
+          ) THEN
+            ALTER TABLE reservations DROP CONSTRAINT reservations_unique_slot;
+          END IF;
+        END $$;
+      `;
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS reservations_active_unique_slot_idx
+        ON reservations (barber_name, reservation_date, reservation_time)
+        WHERE status <> 'cancelled'
       `;
     })();
   }

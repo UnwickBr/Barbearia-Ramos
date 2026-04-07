@@ -19,10 +19,22 @@ type ReservationRow = {
   service_price: string;
   service_duration_minutes: number;
   barber_name: string;
-  reservation_date: string;
+  reservation_date: string | Date;
   reservation_time: string;
   status: string;
+  google_calendar_event_id: string | null;
+  google_calendar_event_link: string | null;
+  cancelled_at: string | null;
   created_at: string;
+};
+
+const extractDateString = (value: string | Date) => {
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : String(value);
 };
 
 const mapReservation = (reservation: ReservationRow) => ({
@@ -32,9 +44,12 @@ const mapReservation = (reservation: ReservationRow) => ({
   servicePrice: Number(reservation.service_price),
   serviceDurationMinutes: reservation.service_duration_minutes,
   barberName: reservation.barber_name,
-  reservationDate: reservation.reservation_date,
+  reservationDate: extractDateString(reservation.reservation_date),
   reservationTime: reservation.reservation_time.slice(0, 5),
   status: reservation.status,
+  googleCalendarEventId: reservation.google_calendar_event_id,
+  googleCalendarEventLink: reservation.google_calendar_event_link,
+  cancelledAt: reservation.cancelled_at,
   createdAt: reservation.created_at,
 });
 
@@ -44,12 +59,25 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const user = await getAuthenticatedUser(req);
 
   if (!user) {
-    return sendJson(res, 401, { error: "Faça login para continuar." });
+    return sendJson(res, 401, { error: "Faca login para continuar." });
   }
 
   if (req.method === "GET") {
     const rows = (await sql`
-      SELECT id, service_id, service_name, service_price, service_duration_minutes, barber_name, reservation_date, reservation_time, status, created_at
+      SELECT
+        id,
+        service_id,
+        service_name,
+        service_price,
+        service_duration_minutes,
+        barber_name,
+        reservation_date,
+        reservation_time,
+        status,
+        google_calendar_event_id,
+        google_calendar_event_link,
+        cancelled_at,
+        created_at
       FROM reservations
       WHERE user_id = ${user.id}
       ORDER BY reservation_date DESC, reservation_time DESC, created_at DESC
@@ -66,27 +94,27 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const reservationTime = body.reservationTime?.trim();
 
     if (!serviceId || !barberName || !reservationDate || !reservationTime) {
-      return sendJson(res, 400, { error: "Todos os dados da reserva são obrigatórios." });
+      return sendJson(res, 400, { error: "Todos os dados da reserva sao obrigatorios." });
     }
 
     const service = servicesById[serviceId];
 
     if (!service) {
-      return sendJson(res, 400, { error: "Serviço inválido." });
+      return sendJson(res, 400, { error: "Servico invalido." });
     }
 
     if (!barbers.includes(barberName as (typeof barbers)[number])) {
-      return sendJson(res, 400, { error: "Barbeiro inválido." });
+      return sendJson(res, 400, { error: "Barbeiro invalido." });
     }
 
     if (!timeSlots.includes(reservationTime as (typeof timeSlots)[number])) {
-      return sendJson(res, 400, { error: "Horário inválido." });
+      return sendJson(res, 400, { error: "Horario invalido." });
     }
 
     const selectedDate = new Date(`${reservationDate}T12:00:00`);
 
     if (Number.isNaN(selectedDate.getTime())) {
-      return sendJson(res, 400, { error: "Data inválida." });
+      return sendJson(res, 400, { error: "Data invalida." });
     }
 
     const today = new Date();
@@ -120,16 +148,29 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           ${reservationDate},
           ${reservationTime}
         )
-        RETURNING id, service_id, service_name, service_price, service_duration_minutes, barber_name, reservation_date, reservation_time, status, created_at
+        RETURNING
+          id,
+          service_id,
+          service_name,
+          service_price,
+          service_duration_minutes,
+          barber_name,
+          reservation_date,
+          reservation_time,
+          status,
+          google_calendar_event_id,
+          google_calendar_event_link,
+          cancelled_at,
+          created_at
       `) as ReservationRow[];
 
       return sendJson(res, 201, { reservation: mapReservation(result[0]) });
     } catch (error) {
-      if (error instanceof Error && error.message.toLowerCase().includes("reservations_unique_slot")) {
-        return sendJson(res, 409, { error: "Esse horário já foi reservado para esse barbeiro." });
+      if (error instanceof Error && error.message.toLowerCase().includes("reservations_active_unique_slot_idx")) {
+        return sendJson(res, 409, { error: "Esse horario ja foi reservado para esse barbeiro." });
       }
 
-      return sendJson(res, 500, { error: "Não foi possível concluir a reserva." });
+      return sendJson(res, 500, { error: "Nao foi possivel concluir a reserva." });
     }
   }
 

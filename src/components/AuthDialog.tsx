@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { GOOGLE_BOOKING_SCOPES } from "@/lib/google";
 
 type AuthDialogProps = {
   open: boolean;
@@ -28,22 +29,22 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
 
     const initializeGoogle = () => {
       if (!window.google?.accounts?.oauth2) {
-        setGoogleError("O SDK do Google foi carregado, mas o cliente OAuth não ficou disponível.");
+        setGoogleError("O SDK do Google foi carregado, mas o cliente OAuth nao ficou disponivel.");
         return;
       }
 
       tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
         client_id: googleClientId,
-        scope: "openid email profile",
+        scope: GOOGLE_BOOKING_SCOPES,
         callback: async (response) => {
           if (!response.access_token) {
             setStartingLogin(false);
-            setGoogleError("O Google não retornou um token de acesso.");
+            setGoogleError("O Google nao retornou um token de acesso.");
             return;
           }
 
           try {
-            await loginWithGoogleAccessToken(response.access_token);
+            await loginWithGoogleAccessToken(response.access_token, response.scope);
             onOpenChange(false);
           } catch (error) {
             setGoogleError(error instanceof Error ? error.message : "Falha ao entrar com Google.");
@@ -65,7 +66,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
 
     if (existingScript) {
       existingScript.addEventListener("load", initializeGoogle, { once: true });
-      existingScript.addEventListener("error", () => setGoogleError("Não foi possível carregar o script do Google."), { once: true });
+      existingScript.addEventListener("error", () => setGoogleError("Nao foi possivel carregar o script do Google."), { once: true });
       return;
     }
 
@@ -74,24 +75,24 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
     script.async = true;
     script.defer = true;
     script.onload = initializeGoogle;
-    script.onerror = () => setGoogleError("Não foi possível carregar o script do Google.");
+    script.onerror = () => setGoogleError("Nao foi possivel carregar o script do Google.");
     document.head.appendChild(script);
 
     return () => {
       script.onload = null;
       script.onerror = null;
     };
-  }, [googleClientId, loginWithGoogleAccessToken, onOpenChange, open]);
+  }, [loginWithGoogleAccessToken, onOpenChange, open]);
 
   const handleGoogleLogin = () => {
     if (!tokenClientRef.current) {
-      setGoogleError("O login Google ainda não está pronto.");
+      setGoogleError("O login Google ainda nao esta pronto.");
       return;
     }
 
     setStartingLogin(true);
     setGoogleError(null);
-    tokenClientRef.current.requestAccessToken({ prompt: "select_account" });
+    tokenClientRef.current.requestAccessToken({ prompt: "consent" });
   };
 
   return (
@@ -100,13 +101,13 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
         <DialogHeader>
           <DialogTitle className="font-display text-3xl tracking-wide">Entrar com Google</DialogTitle>
           <DialogDescription className="font-body">
-            O acesso à Barbearia Ramos acontece exclusivamente com sua conta Google.
+            O acesso a Barbearia Ramos acontece exclusivamente com sua conta Google.
           </DialogDescription>
         </DialogHeader>
 
         <div className="rounded-lg border border-border bg-secondary/40 p-5">
           <p className="mb-4 text-sm text-muted-foreground">
-            Use sua conta Google para acessar suas reservas e salvar novos agendamentos.
+            Use sua conta Google para acessar reservas, adicionar o horario ao seu calendario e receber a confirmacao por e-mail.
           </p>
 
           <Button type="button" className="w-full" onClick={handleGoogleLogin} disabled={!googleReady || startingLogin}>
@@ -115,14 +116,12 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
           </Button>
 
           {!googleClientId ? (
-            <p className="mt-4 text-sm text-destructive">
-              O login Google não está configurado neste ambiente.
-            </p>
+            <p className="mt-4 text-sm text-destructive">O login Google nao esta configurado neste ambiente.</p>
           ) : null}
 
           {googleClientId && !googleReady && !googleError ? (
             <div className="mt-4 rounded-md border border-border bg-background/60 px-4 py-3 text-center text-sm text-muted-foreground">
-              Carregando integração do Google...
+              Carregando integracao do Google...
             </div>
           ) : null}
 
@@ -130,13 +129,9 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
             <div className="mt-4 space-y-2 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               <p>{googleError}</p>
               <p>
-                Confirme no Google Cloud se o origin
-                {" "}
-                <span className="font-semibold">https://barbearia-ramos-demo.vercel.app</span>
-                {" "}
-                está em
-                {" "}
-                <span className="font-semibold">Authorized JavaScript origins</span>.
+                Confirme no Google Cloud se o origin{" "}
+                <span className="font-semibold">https://barbearia-ramos-demo.vercel.app</span>{" "}
+                esta em <span className="font-semibold">Authorized JavaScript origins</span>.
               </p>
             </div>
           ) : null}

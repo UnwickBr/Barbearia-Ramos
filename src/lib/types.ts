@@ -16,5 +16,8 @@ export interface Reservation {
   reservationDate: string;
   reservationTime: string;
   status: string;
+  googleCalendarEventId?: string | null;
+  googleCalendarEventLink?: string | null;
+  cancelledAt?: string | null;
   createdAt: string;
 }

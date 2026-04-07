@@ -38,6 +38,12 @@ const Index = () => {
             ) : user ? (
               <div className="flex items-center gap-3">
                 <Link
+                  to="/agendamentos#minhas-reservas"
+                  className="text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Meus agendamentos
+                </Link>
+                <Link
                   to="/agendamentos"
                   className="bg-foreground px-5 py-2 text-xs font-semibold uppercase tracking-widest text-background transition-colors hover:bg-foreground/80"
                 >

@@ -19,6 +19,19 @@ CREATE TABLE IF NOT EXISTS reservations (
   reservation_date DATE NOT NULL,
   reservation_time TIME NOT NULL,
   status TEXT NOT NULL DEFAULT 'confirmed',
+  google_calendar_event_id TEXT,
+  google_calendar_event_link TEXT,
+  cancelled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT reservations_unique_slot UNIQUE (barber_name, reservation_date, reservation_time)
 );
+
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS google_calendar_event_id TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS google_calendar_event_link TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+
+ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_unique_slot;
+
+CREATE UNIQUE INDEX IF NOT EXISTS reservations_active_unique_slot_idx
+ON reservations (barber_name, reservation_date, reservation_time)
+WHERE status <> 'cancelled';

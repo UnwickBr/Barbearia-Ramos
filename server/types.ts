@@ -1,6 +1,7 @@
 export type ApiRequest = {
   method?: string;
   body?: unknown;
+  query?: Record<string, string | string[] | undefined>;
   headers: {
     cookie?: string;
     [key: string]: string | string[] | undefined;
