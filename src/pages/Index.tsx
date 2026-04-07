@@ -22,9 +22,7 @@ const Index = () => {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-3">
             <img src={logoRamos} alt="Barbearia Ramos" className="h-10 w-auto" />
-            <span className="street-brand text-sm text-foreground sm:text-base">
-              Barbearia <span className="street-brand-word text-base sm:text-lg">Ramos</span>
-            </span>
+            <span className="font-display text-xl font-bold tracking-widest text-foreground">BARBEARIA RAMOS</span>
           </Link>
 
           <div className="flex items-center gap-6">
