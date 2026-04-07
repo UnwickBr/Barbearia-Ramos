@@ -72,11 +72,14 @@
 
   .street-brand-word {
     font-family: 'The Kallman Demo', 'Oswald', sans-serif;
-    letter-spacing: 0.06em;
+    display: inline-block;
+    letter-spacing: -0.02em;
     text-transform: uppercase;
     text-shadow:
       0 3px 0 rgba(0, 0, 0, 0.9),
       0 10px 24px rgba(0, 0, 0, 0.55);
+    transform: rotate(-4deg) translateY(0.04em);
+    transform-origin: center;
   }
 
   .street-brand-hero {
