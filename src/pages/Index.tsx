@@ -86,7 +86,7 @@ const Index = () => {
         >
           <img src={logoRamos} alt="Barbearia Ramos" className="mx-auto mb-8 h-32 w-auto md:h-44" />
           <h1 className="street-brand street-brand-hero mb-4 text-4xl text-foreground md:text-7xl">
-            Barbearia <span className="street-brand-word text-5xl md:text-8xl">RAMOS</span>
+            Barbearia Ramos
           </h1>
           <div className="mx-auto mb-6 h-[2px] w-24 bg-foreground" />
           <p className="mb-10 font-body text-base uppercase tracking-wide text-muted-foreground md:text-lg">
