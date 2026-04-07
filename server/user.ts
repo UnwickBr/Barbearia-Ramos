@@ -1,7 +1,7 @@
-import { verifySessionToken } from "./auth";
-import { sql } from "./db";
-import { getCookie } from "./http";
-import type { ApiRequest } from "./types";
+import { verifySessionToken } from "./auth.js";
+import { sql } from "./db.js";
+import { getCookie } from "./http.js";
+import type { ApiRequest } from "./types.js";
 
 type DatabaseUser = {
   id: string;

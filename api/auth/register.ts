@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { buildAvatarUrl, createSessionToken, hashPassword } from "../../server/auth";
-import { ensureSchema, sql } from "../../server/db";
-import { parseJsonBody, sendJson, setCookie } from "../../server/http";
-import type { ApiRequest, ApiResponse } from "../../server/types";
-import { mapUser } from "../../server/user";
+import { buildAvatarUrl, createSessionToken, hashPassword } from "../../server/auth.js";
+import { ensureSchema, sql } from "../../server/db.js";
+import { parseJsonBody, sendJson, setCookie } from "../../server/http.js";
+import type { ApiRequest, ApiResponse } from "../../server/types.js";
+import { mapUser } from "../../server/user.js";
 
 type RegisterBody = {
   name?: string;

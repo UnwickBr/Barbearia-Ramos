@@ -1,4 +1,4 @@
-import type { ApiRequest, ApiResponse } from "./types";
+import type { ApiRequest, ApiResponse } from "./types.js";
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
