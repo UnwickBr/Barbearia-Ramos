@@ -242,7 +242,7 @@ const Agendamentos = () => {
     <div className="min-h-screen bg-background pb-12 pt-20">
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link to="/" className="font-display text-2xl font-bold tracking-wide text-primary">
+          <Link to="/" className="street-brand text-lg text-primary sm:text-2xl">
             BARBEARIA <span className="text-foreground">RAMOS</span>
           </Link>
           <div className="flex items-center gap-4">

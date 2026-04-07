@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Oswald:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -54,5 +54,21 @@
     font-family: 'Oswald', sans-serif;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+}
+
+@layer components {
+  .street-brand {
+    font-family: 'Bungee', sans-serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.9),
+      0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+
+  .street-brand-hero {
+    line-height: 0.92;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
   }
 }
