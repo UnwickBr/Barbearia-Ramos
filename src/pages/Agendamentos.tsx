@@ -54,12 +54,21 @@ const Agendamentos = () => {
 
   const createReservation = useMutation({
     mutationFn: reservationsApi.create,
+    onSuccess: (data) => {
+      queryClient.setQueryData<Reservation[]>(["reservations", user?.id], (current) => {
+        const list = current ?? [];
+        return [data.reservation, ...list.filter((item) => item.id !== data.reservation.id)];
+      });
+    },
   });
 
   const cancelReservation = useMutation({
     mutationFn: reservationsApi.cancel,
     onSuccess: (data) => {
       setConfirmedReservation((current) => (current?.id === data.reservation.id ? data.reservation : current));
+      queryClient.setQueryData<Reservation[]>(["reservations", user?.id], (current) =>
+        (current ?? []).map((item) => (item.id === data.reservation.id ? data.reservation : item)),
+      );
       void queryClient.invalidateQueries({ queryKey: ["reservations", user?.id] });
     },
   });
@@ -134,6 +143,9 @@ const Agendamentos = () => {
       });
 
       updatedReservation = response.reservation;
+      queryClient.setQueryData<Reservation[]>(["reservations", user?.id], (current) =>
+        (current ?? []).map((item) => (item.id === response.reservation.id ? response.reservation : item)),
+      );
     } catch (error) {
       if (isGoogleAuthError(error)) {
         try {
@@ -154,6 +166,9 @@ const Agendamentos = () => {
           });
 
           updatedReservation = response.reservation;
+          queryClient.setQueryData<Reservation[]>(["reservations", user?.id], (current) =>
+            (current ?? []).map((item) => (item.id === response.reservation.id ? response.reservation : item)),
+          );
         } catch (retryError) {
           toast({
             title: "Reserva salva sem Google Calendar",
@@ -588,9 +603,13 @@ const Agendamentos = () => {
           </div>
 
           {reservationsQuery.isLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-              Carregando reservas...
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+            Carregando reservas...
+          </div>
+          ) : reservationsQuery.isError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+              {reservationsQuery.error instanceof Error ? reservationsQuery.error.message : "Nao foi possivel carregar seus agendamentos."}
             </div>
           ) : reservationsQuery.data && reservationsQuery.data.length > 0 ? (
             <div className="grid gap-4">
