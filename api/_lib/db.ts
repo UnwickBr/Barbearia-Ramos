@@ -15,10 +15,9 @@ declare global {
 export const ensureSchema = async () => {
   if (!globalThis.__barbeariaRamosSchemaReady) {
     globalThis.__barbeariaRamosSchemaReady = (async () => {
-      await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`;
       await sql`
         CREATE TABLE IF NOT EXISTS users (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           email TEXT NOT NULL UNIQUE,
           password_hash TEXT NOT NULL,
@@ -28,8 +27,8 @@ export const ensureSchema = async () => {
       `;
       await sql`
         CREATE TABLE IF NOT EXISTS reservations (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           service_id TEXT NOT NULL,
           service_name TEXT NOT NULL,
           service_price NUMERIC(10, 2) NOT NULL,

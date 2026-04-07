@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { randomUUID } from "node:crypto";
 import { barbers, servicesById, timeSlots } from "../_lib/barbershop";
 import { ensureSchema, sql } from "../_lib/db";
 import { parseJsonBody, sendJson } from "../_lib/http";
@@ -98,6 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const result = (await sql`
         INSERT INTO reservations (
+          id,
           user_id,
           service_id,
           service_name,
@@ -108,6 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           reservation_time
         )
         VALUES (
+          ${randomUUID()},
           ${user.id},
           ${service.id},
           ${service.name},

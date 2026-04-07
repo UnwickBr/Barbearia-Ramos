@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { randomUUID } from "node:crypto";
 import { buildAvatarUrl, createSessionToken, hashPassword } from "../_lib/auth";
 import { ensureSchema, sql } from "../_lib/db";
 import { parseJsonBody, sendJson, setCookie } from "../_lib/http";
@@ -34,8 +35,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const result = (await sql`
-      INSERT INTO users (name, email, password_hash, avatar_url)
-      VALUES (${name}, ${email}, ${hashPassword(password)}, ${avatarUrl})
+      INSERT INTO users (id, name, email, password_hash, avatar_url)
+      VALUES (${randomUUID()}, ${name}, ${email}, ${hashPassword(password)}, ${avatarUrl})
       RETURNING id, name, email, avatar_url, created_at
     `) as Array<{ id: string; name: string; email: string; avatar_url: string; created_at: string }>;
 
