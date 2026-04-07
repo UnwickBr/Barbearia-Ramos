@@ -58,7 +58,16 @@ export const reservationsApi = {
 export const adminApi = {
   listReservations: (date: string) => apiRequest<{ date: string; reservations: Reservation[] }>(`/api/admin/reservations?date=${encodeURIComponent(date)}`),
   listUsers: (search: string) => apiRequest<{ users: User[] }>(`/api/admin/users?search=${encodeURIComponent(search)}`),
-  updateUser: (userId: string, payload: { role: "admin" | "collaborator" | "customer"; barberName?: string | null }) =>
+  updateUser: (
+    userId: string,
+    payload: {
+      role: "admin" | "collaborator" | "customer";
+      barberName?: string | null;
+      photoUrl?: string | null;
+      phone?: string | null;
+      notes?: string | null;
+    },
+  ) =>
     apiRequest<{ user: User }>(`/api/admin/users/${userId}`, { method: "PATCH", body: payload }),
   dashboard: (period: "day" | "week" | "month", date: string) =>
     apiRequest<{ period: string; startDate: string; endDate: string; stats: EmployeeDashboardStat[] }>(

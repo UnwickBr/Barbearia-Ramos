@@ -20,8 +20,12 @@ const ColaboradorAgendamentos = () => {
   });
 
   const myReservations = useMemo(
-    () => (dailyReservationsQuery.data ?? []).filter((reservation) => reservation.barberName === user?.barberName),
-    [dailyReservationsQuery.data, user?.barberName],
+    () =>
+      (dailyReservationsQuery.data ?? []).filter(
+        (reservation) =>
+          reservation.barberUserId === user?.id || (!reservation.barberUserId && reservation.barberName === user?.barberName),
+      ),
+    [dailyReservationsQuery.data, user?.barberName, user?.id],
   );
 
   if (loading) {

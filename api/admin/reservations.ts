@@ -28,6 +28,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     SELECT
       r.id,
       r.user_id,
+      r.barber_user_id,
       r.service_id,
       r.service_name,
       r.service_price,
@@ -47,7 +48,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     FROM reservations r
     INNER JOIN users u ON u.id = r.user_id
     WHERE r.reservation_date = ${selectedDate}
-      AND (${user.isAdmin} OR r.barber_name = ${user.barberName})
+      AND (
+        ${user.isAdmin}
+        OR r.barber_user_id = ${user.id}
+        OR (r.barber_user_id IS NULL AND r.barber_name = ${user.barberName})
+      )
     ORDER BY r.barber_name ASC, r.reservation_time ASC, r.created_at ASC
   `) as ReservationRow[];
 

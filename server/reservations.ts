@@ -1,6 +1,7 @@
 export type ReservationRow = {
   id: string;
   user_id?: string;
+  barber_user_id?: string | null;
   service_id: string;
   service_name: string;
   service_price: string;
@@ -34,6 +35,7 @@ export const mapReservation = (reservation: ReservationRow) => ({
   serviceName: reservation.service_name,
   servicePrice: Number(reservation.service_price),
   serviceDurationMinutes: reservation.service_duration_minutes,
+  barberUserId: reservation.barber_user_id ?? null,
   barberName: reservation.barber_name,
   reservationDate: extractDateString(reservation.reservation_date),
   reservationTime: reservation.reservation_time.slice(0, 5),

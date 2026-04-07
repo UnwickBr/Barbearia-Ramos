@@ -10,6 +10,9 @@ type UserRow = {
   is_admin: boolean;
   role: "admin" | "collaborator" | "customer";
   barber_name: string | null;
+  photo_url: string | null;
+  phone: string | null;
+  notes: string | null;
   avatar_url: string;
   created_at: string;
 };
@@ -21,7 +24,10 @@ const mapAdminUser = (user: UserRow) => ({
   isAdmin: user.is_admin,
   role: user.is_admin ? "admin" : user.role,
   barberName: user.barber_name,
-  avatarUrl: user.avatar_url,
+  photoUrl: user.photo_url,
+  avatarUrl: user.photo_url || user.avatar_url,
+  phone: user.phone,
+  notes: user.notes,
   createdAt: user.created_at,
 });
 
@@ -47,13 +53,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const rows = search
     ? ((await sql`
-        SELECT id, name, email, is_admin, role, barber_name, avatar_url, created_at
+        SELECT id, name, email, is_admin, role, barber_name, photo_url, phone, notes, avatar_url, created_at
         FROM users
         WHERE LOWER(name) LIKE ${`%${search}%`} OR LOWER(email) LIKE ${`%${search}%`}
         ORDER BY created_at DESC
       `) as UserRow[])
     : ((await sql`
-        SELECT id, name, email, is_admin, role, barber_name, avatar_url, created_at
+        SELECT id, name, email, is_admin, role, barber_name, photo_url, phone, notes, avatar_url, created_at
         FROM users
         ORDER BY created_at DESC
       `) as UserRow[]);

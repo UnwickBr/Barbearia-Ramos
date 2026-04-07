@@ -11,6 +11,9 @@ type DatabaseUser = {
   is_admin?: boolean;
   role?: string;
   barber_name?: string | null;
+  photo_url?: string | null;
+  phone?: string | null;
+  notes?: string | null;
   avatar_url: string;
   created_at: string;
 };
@@ -22,7 +25,10 @@ export type AuthenticatedUser = {
   isAdmin: boolean;
   role: "admin" | "collaborator" | "customer";
   barberName: string | null;
+  photoUrl: string | null;
   avatarUrl: string;
+  phone: string | null;
+  notes: string | null;
   createdAt: string;
 };
 
@@ -33,7 +39,10 @@ export const mapUser = (user: DatabaseUser): AuthenticatedUser => ({
   isAdmin: user.is_admin ?? isAdminEmail(user.email),
   role: (user.is_admin ?? isAdminEmail(user.email)) ? "admin" : ((user.role as "admin" | "collaborator" | "customer" | undefined) ?? "customer"),
   barberName: user.barber_name ?? null,
-  avatarUrl: user.avatar_url,
+  photoUrl: user.photo_url ?? null,
+  avatarUrl: user.photo_url || user.avatar_url,
+  phone: user.phone ?? null,
+  notes: user.notes ?? null,
   createdAt: user.created_at,
 });
 
@@ -46,7 +55,7 @@ export const getAuthenticatedUser = async (req: ApiRequest) => {
   }
 
   const result = (await sql`
-    SELECT id, name, email, is_admin, role, barber_name, avatar_url, created_at
+    SELECT id, name, email, is_admin, role, barber_name, photo_url, phone, notes, avatar_url, created_at
     FROM users
     WHERE id = ${session.sub}
     LIMIT 1

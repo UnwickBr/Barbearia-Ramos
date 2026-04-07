@@ -26,6 +26,14 @@ const roleLabel: Record<User["role"], string> = {
   customer: "Cliente",
 };
 
+type UserDraft = {
+  role: User["role"];
+  barberName: string;
+  photoUrl: string;
+  phone: string;
+  notes: string;
+};
+
 const AdminAgendamentos = () => {
   const { user, loading, logout, googleAccessToken } = useAuth();
   const queryClient = useQueryClient();
@@ -36,7 +44,7 @@ const AdminAgendamentos = () => {
   const [search, setSearch] = useState("");
   const [cancelInputs, setCancelInputs] = useState<Record<string, string>>({});
   const [rescheduleInputs, setRescheduleInputs] = useState<Record<string, { barberName: string; reservationDate: string; reservationTime: string }>>({});
-  const [userDrafts, setUserDrafts] = useState<Record<string, { role: User["role"]; barberName: string }>>({});
+  const [userDrafts, setUserDrafts] = useState<Record<string, UserDraft>>({});
 
   const invalidateAll = () => {
     void queryClient.invalidateQueries({ queryKey: ["admin-reservations"] });
@@ -81,10 +89,25 @@ const AdminAgendamentos = () => {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: ({ userId, role, barberName }: { userId: string; role: User["role"]; barberName: string }) =>
-      adminApi.updateUser(userId, { role, barberName: role === "collaborator" ? barberName : null }),
+    mutationFn: ({ userId, draft }: { userId: string; draft: UserDraft }) =>
+      adminApi.updateUser(userId, {
+        role: draft.role,
+        barberName: draft.role === "collaborator" ? draft.barberName : null,
+        photoUrl: draft.photoUrl || null,
+        phone: draft.phone || null,
+        notes: draft.notes || null,
+      }),
     onSuccess: invalidateAll,
   });
+
+  const getUserDraft = (account: User): UserDraft =>
+    userDrafts[account.id] ?? {
+      role: account.role,
+      barberName: account.barberName ?? "",
+      photoUrl: account.photoUrl ?? "",
+      phone: account.phone ?? "",
+      notes: account.notes ?? "",
+    };
 
   const agendaSummary = useMemo(() => {
     const reservations = agendaQuery.data ?? [];
@@ -149,8 +172,8 @@ const AdminAgendamentos = () => {
   };
 
   const handleUpdateUser = async (account: User) => {
-    const draft = userDrafts[account.id] ?? { role: account.role, barberName: account.barberName ?? "" };
-    await updateUserMutation.mutateAsync({ userId: account.id, role: draft.role, barberName: draft.barberName });
+    const draft = getUserDraft(account);
+    await updateUserMutation.mutateAsync({ userId: account.id, draft });
     toast({ title: "Perfil atualizado", description: `Perfil de ${account.name} atualizado.` });
   };
 
@@ -277,20 +300,25 @@ const AdminAgendamentos = () => {
             {usersQuery.isLoading ? <div className="flex items-center gap-2 text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" /> Carregando contas...</div> : (
               <div className="grid gap-4">
                 {(usersQuery.data ?? []).map((account) => {
-                  const draft = userDrafts[account.id] ?? { role: account.role, barberName: account.barberName ?? "" };
+                  const draft = getUserDraft(account);
                   return (
                     <div key={account.id} className="rounded-xl border border-border bg-card p-5">
                       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-center gap-3"><img src={account.avatarUrl} alt={account.name} className="h-12 w-12 rounded-full border border-border" /><div><h3 className="font-display text-xl font-semibold">{account.name}</h3><p className="text-sm text-muted-foreground">{account.email}</p></div></div>
+                        <div className="flex items-center gap-3"><img src={draft.photoUrl || account.avatarUrl} alt={account.name} className="h-12 w-12 rounded-full border border-border object-cover" /><div><h3 className="font-display text-xl font-semibold">{account.name}</h3><p className="text-sm text-muted-foreground">{account.email}</p>{account.phone ? <p className="text-xs text-muted-foreground">{account.phone}</p> : null}</div></div>
                         <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary">{roleLabel[account.role]}</span>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                      <div className="grid gap-3 md:grid-cols-2">
                         <select value={draft.role} onChange={(event) => setUserDrafts((current) => ({ ...current, [account.id]: { ...draft, role: event.target.value as User["role"] } }))} className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none">
                           <option value="customer">Cliente</option><option value="collaborator">Colaborador</option><option value="admin">Admin</option>
                         </select>
                         <select value={draft.barberName} onChange={(event) => setUserDrafts((current) => ({ ...current, [account.id]: { ...draft, barberName: event.target.value } }))} disabled={draft.role !== "collaborator"} className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none disabled:opacity-50">
                           <option value="">Selecione o barbeiro</option>{barbers.map((barber) => <option key={barber} value={barber}>{barber}</option>)}
                         </select>
+                        <input value={draft.phone} onChange={(event) => setUserDrafts((current) => ({ ...current, [account.id]: { ...draft, phone: event.target.value } }))} placeholder="Telefone" className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                        <input value={draft.photoUrl} onChange={(event) => setUserDrafts((current) => ({ ...current, [account.id]: { ...draft, photoUrl: event.target.value } }))} placeholder="URL da foto do perfil" className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                        <textarea value={draft.notes} onChange={(event) => setUserDrafts((current) => ({ ...current, [account.id]: { ...draft, notes: event.target.value } }))} rows={3} placeholder="Observacoes internas do perfil" className="md:col-span-2 w-full rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      </div>
+                      <div className="mt-3">
                         <button onClick={() => void handleUpdateUser(account)} disabled={updateUserMutation.isPending} className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60"><UserCog className="h-4 w-4" /> Alterar perfil</button>
                       </div>
                     </div>

@@ -18,10 +18,23 @@ type CancelReservationBody = {
   cancellationReason?: string;
 };
 
+const findCollaboratorIdByBarberName = async (barberName: string) => {
+  const rows = (await sql`
+    SELECT id
+    FROM users
+    WHERE role = 'collaborator' AND barber_name = ${barberName}
+    ORDER BY created_at ASC
+    LIMIT 1
+  `) as Array<{ id: string }>;
+
+  return rows[0]?.id ?? null;
+};
+
 const getReservation = async (reservationId: string, userId: string, isAdmin: boolean) => {
   const rows = (await sql`
     SELECT
       id,
+      barber_user_id,
       service_id,
       service_name,
       service_price,
@@ -79,6 +92,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         WHERE id = ${reservationId} AND user_id = ${user.id}
         RETURNING
           id,
+          barber_user_id,
           service_id,
           service_name,
           service_price,
@@ -109,6 +123,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         WHERE id = ${reservationId}
         RETURNING
           id,
+          barber_user_id,
           service_id,
           service_name,
           service_price,
@@ -152,9 +167,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       }
 
       try {
+        const barberUserId = await findCollaboratorIdByBarberName(barberName);
         const updated = (await sql`
           UPDATE reservations
           SET
+            barber_user_id = ${barberUserId},
             barber_name = ${barberName},
             reservation_date = ${reservationDate},
             reservation_time = ${reservationTime},
@@ -165,6 +182,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           WHERE id = ${reservationId}
           RETURNING
             id,
+            barber_user_id,
             service_id,
             service_name,
             service_price,
@@ -216,6 +234,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       WHERE id = ${reservationId} AND (${user.isAdmin} OR user_id = ${user.id})
       RETURNING
         id,
+        barber_user_id,
         service_id,
         service_name,
         service_price,

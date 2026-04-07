@@ -5,7 +5,10 @@ export interface User {
   isAdmin: boolean;
   role: "admin" | "collaborator" | "customer";
   barberName: string | null;
+  photoUrl: string | null;
   avatarUrl: string;
+  phone: string | null;
+  notes: string | null;
   createdAt: string;
 }
 
@@ -15,6 +18,7 @@ export interface Reservation {
   serviceName: string;
   servicePrice: number;
   serviceDurationMinutes: number;
+  barberUserId?: string | null;
   barberName: string;
   reservationDate: string;
   reservationTime: string;

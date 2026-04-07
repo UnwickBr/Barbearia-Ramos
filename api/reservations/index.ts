@@ -13,6 +13,18 @@ type ReservationBody = {
   reservationTime?: string;
 };
 
+const findCollaboratorIdByBarberName = async (barberName: string) => {
+  const rows = (await sql`
+    SELECT id
+    FROM users
+    WHERE role = 'collaborator' AND barber_name = ${barberName}
+    ORDER BY created_at ASC
+    LIMIT 1
+  `) as Array<{ id: string }>;
+
+  return rows[0]?.id ?? null;
+};
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
 
@@ -49,6 +61,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     const rows = (await sql`
       SELECT
+        barber_user_id,
         id,
         service_id,
         service_name,
@@ -117,6 +130,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     try {
+      const barberUserId = await findCollaboratorIdByBarberName(barberName);
       const result = (await sql`
         INSERT INTO reservations (
           id,
@@ -125,6 +139,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           service_name,
           service_price,
           service_duration_minutes,
+          barber_user_id,
           barber_name,
           reservation_date,
           reservation_time
@@ -136,11 +151,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           ${service.name},
           ${service.price},
           ${service.duration},
+          ${barberUserId},
           ${barberName},
           ${reservationDate},
           ${reservationTime}
         )
         RETURNING
+          barber_user_id,
           id,
           service_id,
           service_name,
