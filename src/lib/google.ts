@@ -215,6 +215,59 @@ export const createGoogleCalendarEvent = async ({
   };
 };
 
+export const updateGoogleCalendarEvent = async ({
+  accessToken,
+  eventId,
+  serviceName,
+  barberName,
+  reservationDate,
+  reservationTime,
+  serviceDurationMinutes,
+  userEmail,
+}: CalendarPayload & { eventId: string }) => {
+  const startDate = buildReservationDateTime(reservationDate, reservationTime);
+
+  if (!startDate) {
+    throw new Error("Nao foi possivel interpretar a data do agendamento.");
+  }
+
+  const endDate = new Date(startDate.getTime() + serviceDurationMinutes * 60 * 1000);
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      summary: `${serviceName} - Barbearia Ramos`,
+      description: `Agendamento confirmado com ${barberName} na Barbearia Ramos.`,
+      start: {
+        dateTime: formatCalendarDateTime(startDate),
+        timeZone: GOOGLE_API_TIMEZONE,
+      },
+      end: {
+        dateTime: formatCalendarDateTime(endDate),
+        timeZone: GOOGLE_API_TIMEZONE,
+      },
+      attendees: [{ email: userEmail }],
+      reminders: {
+        useDefault: true,
+      },
+    }),
+  });
+
+  const data = (await response.json().catch(() => ({}))) as { id?: string; htmlLink?: string; error?: { message?: string } };
+
+  if (!response.ok || !data.id) {
+    throw new Error(data.error?.message || "O Google Calendar recusou a atualizacao do evento.");
+  }
+
+  return {
+    eventId: data.id,
+    eventLink: data.htmlLink ?? null,
+  };
+};
+
 export const deleteGoogleCalendarEvent = async (accessToken: string, eventId: string) => {
   const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
     method: "DELETE",

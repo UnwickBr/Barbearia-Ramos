@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -15,6 +15,7 @@ import {
   hasGoogleBookingScopes,
   isGoogleAuthError,
   sendGmailMessage,
+  updateGoogleCalendarEvent,
 } from "@/lib/google";
 import { reservationsApi } from "@/lib/api";
 import type { Reservation } from "@/lib/types";
@@ -27,6 +28,17 @@ const Agendamentos = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmedReservation, setConfirmedReservation] = useState<Reservation | null>(null);
+  const [syncingReservationId, setSyncingReservationId] = useState<string | null>(null);
+
+  const getSyncSignature = (reservation: Reservation) =>
+    [
+      reservation.id,
+      reservation.status,
+      reservation.reservationDate,
+      reservation.reservationTime,
+      reservation.googleCalendarEventId ?? "new",
+      reservation.rescheduledAt ?? "no-reschedule",
+    ].join(":");
 
   const canConfirm = Boolean(selectedService && selectedBarber && selectedDate && selectedTime);
 
@@ -86,19 +98,7 @@ const Agendamentos = () => {
     }
   }, [selectedTime, unavailableTimes]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
-
-  const ensureGoogleIntegration = async (forceConsent = false) => {
+  const ensureGoogleIntegration = useCallback(async (forceConsent = false) => {
     if (googleAccessToken && hasGoogleBookingScopes() && !forceConsent) {
       return googleAccessToken;
     }
@@ -109,7 +109,7 @@ const Agendamentos = () => {
     });
 
     return await connectGoogleServices(forceConsent || !googleAccessToken || !hasGoogleBookingScopes());
-  };
+  }, [connectGoogleServices, googleAccessToken]);
 
   const syncReservationWithGoogle = async (reservation: Reservation) => {
     let updatedReservation = reservation;
@@ -236,6 +236,158 @@ const Agendamentos = () => {
 
     return updatedReservation;
   };
+
+  const syncReservationEvent = useCallback(async (reservation: Reservation, options?: { silent?: boolean }) => {
+    if (!user) {
+      return reservation;
+    }
+
+    setSyncingReservationId(reservation.id);
+
+    try {
+      let activeAccessToken: string;
+
+      try {
+        activeAccessToken = await ensureGoogleIntegration();
+      } catch (error) {
+        if (!options?.silent) {
+          toast({
+            title: "Sincronizacao pendente",
+            description: error instanceof Error ? error.message : "Nao foi possivel autorizar o Google Calendar.",
+            variant: "destructive",
+          });
+        }
+        return reservation;
+      }
+
+      let updatedReservation = reservation;
+
+      const applySync = async (token: string) => {
+        if (reservation.googleCalendarEventId) {
+          const event = await updateGoogleCalendarEvent({
+            accessToken: token,
+            eventId: reservation.googleCalendarEventId,
+            serviceName: reservation.serviceName,
+            barberName: reservation.barberName,
+            reservationDate: reservation.reservationDate,
+            reservationTime: reservation.reservationTime,
+            serviceDurationMinutes: reservation.serviceDurationMinutes,
+            userEmail: user.email,
+          });
+
+          const response = await reservationsApi.attachCalendarEvent(reservation.id, {
+            googleCalendarEventId: event.eventId,
+            googleCalendarEventLink: event.eventLink,
+          });
+
+          updatedReservation = response.reservation;
+        } else {
+          const event = await createGoogleCalendarEvent({
+            accessToken: token,
+            serviceName: reservation.serviceName,
+            barberName: reservation.barberName,
+            reservationDate: reservation.reservationDate,
+            reservationTime: reservation.reservationTime,
+            serviceDurationMinutes: reservation.serviceDurationMinutes,
+            userEmail: user.email,
+          });
+
+          const response = await reservationsApi.attachCalendarEvent(reservation.id, {
+            googleCalendarEventId: event.eventId,
+            googleCalendarEventLink: event.eventLink,
+          });
+
+          updatedReservation = response.reservation;
+        }
+      };
+
+      try {
+        await applySync(activeAccessToken);
+      } catch (error) {
+        if (!isGoogleAuthError(error)) {
+          throw error;
+        }
+
+        activeAccessToken = await ensureGoogleIntegration(true);
+        await applySync(activeAccessToken);
+      }
+
+      queryClient.setQueryData<Reservation[]>(["reservations", user?.id], (current) =>
+        (current ?? []).map((item) => (item.id === updatedReservation.id ? updatedReservation : item)),
+      );
+      setConfirmedReservation((current) => (current?.id === updatedReservation.id ? updatedReservation : current));
+
+      if (!options?.silent) {
+        toast({
+          title: "Google Calendar sincronizado",
+          description: "O evento foi atualizado na sua agenda.",
+        });
+      }
+
+      return updatedReservation;
+    } catch (error) {
+      if (!options?.silent) {
+        toast({
+          title: "Falha ao sincronizar",
+          description: error instanceof Error ? error.message : "Nao foi possivel atualizar o Google Calendar.",
+          variant: "destructive",
+        });
+      }
+
+      return reservation;
+    } finally {
+      setSyncingReservationId((current) => (current === reservation.id ? null : current));
+    }
+  }, [ensureGoogleIntegration, queryClient, user]);
+
+  useEffect(() => {
+    if (!user || !reservationsQuery.data || reservationsQuery.data.length === 0) {
+      return;
+    }
+
+    const pendingReservations = reservationsQuery.data.filter(
+      (reservation) =>
+        reservation.status !== "cancelled" &&
+        (
+          !reservation.googleCalendarEventId ||
+          Boolean(reservation.rescheduledAt)
+        ),
+    );
+
+    if (pendingReservations.length === 0) {
+      return;
+    }
+
+    void (async () => {
+      for (const reservation of pendingReservations) {
+        const syncKey = `barbearia_ramos_calendar_sync_${reservation.id}`;
+        const nextSignature = getSyncSignature(reservation);
+        const previousSignature = typeof window === "undefined" ? null : window.sessionStorage.getItem(syncKey);
+
+        if (previousSignature === nextSignature) {
+          continue;
+        }
+
+        const syncedReservation = await syncReservationEvent(reservation, { silent: true });
+
+        if (typeof window !== "undefined" && syncedReservation.googleCalendarEventId) {
+          window.sessionStorage.setItem(syncKey, getSyncSignature(syncedReservation));
+        }
+      }
+    })();
+  }, [reservationsQuery.data, syncReservationEvent, user]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleConfirm = async () => {
     if (!canConfirm || !selectedService || !selectedBarber || !selectedDate || !selectedTime) {
@@ -648,6 +800,16 @@ const Agendamentos = () => {
                             >
                               <CalendarCheck2 className="h-4 w-4" /> Ver no Google
                             </a>
+                          ) : null}
+
+                          {!isCancelled ? (
+                            <button
+                              onClick={() => void syncReservationEvent(reservation)}
+                              disabled={syncingReservationId === reservation.id}
+                              className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <CalendarCheck2 className="h-4 w-4" /> {syncingReservationId === reservation.id ? "Sincronizando..." : "Sincronizar Google"}
+                            </button>
                           ) : null}
 
                           {!isCancelled ? (
