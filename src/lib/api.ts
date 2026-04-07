@@ -26,6 +26,8 @@ export const authApi = {
   me: () => apiRequest<{ user: User | null }>("/api/auth/me"),
   google: (credential: string) =>
     apiRequest<{ user: User }>("/api/auth/google", { method: "POST", body: { credential } }),
+  googleAccessToken: (accessToken: string) =>
+    apiRequest<{ user: User }>("/api/auth/google", { method: "POST", body: { accessToken } }),
   logout: () => apiRequest<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
 };
 

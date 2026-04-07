@@ -1,12 +1,13 @@
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
 import { createSessionToken } from "../../server/auth.js";
 import { ensureSchema, sql } from "../../server/db.js";
-import { verifyGoogleCredential } from "../../server/google.js";
+import { verifyGoogleAccessToken, verifyGoogleCredential } from "../../server/google.js";
 import { parseJsonBody, sendJson, setCookie } from "../../server/http.js";
 import { mapUser } from "../../server/user.js";
 
 type GoogleAuthBody = {
   credential?: string;
+  accessToken?: string;
 };
 
 type UserRow = {
@@ -26,13 +27,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const body = await parseJsonBody<GoogleAuthBody>(req);
   const credential = body.credential?.trim();
+  const accessToken = body.accessToken?.trim();
 
-  if (!credential) {
+  if (!credential && !accessToken) {
     return sendJson(res, 400, { error: "Credencial do Google obrigatória." });
   }
 
   try {
-    const googleUser = await verifyGoogleCredential(credential);
+    const googleUser = credential
+      ? await verifyGoogleCredential(credential)
+      : await verifyGoogleAccessToken(accessToken as string);
 
     const existingByGoogle = (await sql`
       SELECT id, name, email, avatar_url, created_at

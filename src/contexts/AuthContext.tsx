@@ -6,7 +6,7 @@ import { toast } from "@/hooks/use-toast";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginWithGoogle: (credential: string) => Promise<void>;
+  loginWithGoogleAccessToken: (accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -42,8 +42,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     void refreshUser();
   }, []);
 
-  const loginWithGoogle = async (credential: string) => {
-    const response = await authApi.google(credential);
+  const loginWithGoogleAccessToken = async (accessToken: string) => {
+    const response = await authApi.googleAccessToken(accessToken);
     setUser(response.user);
     toast({
       title: "Login realizado",
@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     () => ({
       user,
       loading,
-      loginWithGoogle,
+      loginWithGoogleAccessToken,
       logout,
       refreshUser,
     }),
