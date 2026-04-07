@@ -12,22 +12,20 @@ const Index = () => {
   const { user, logout, loading } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
-  const handleOpenAuth = () => {
-    setAuthDialogOpen(true);
-  };
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-3">
-            <img src={logoRamos} alt="Barbearia Ramos" className="h-10 w-auto" />
-            <span className="font-display text-xl font-bold tracking-widest text-foreground">BARBEARIA RAMOS</span>
+        <div className="container mx-auto flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link to="/" className="flex min-w-0 items-center gap-3 self-start">
+            <img src={logoRamos} alt="Barbearia Ramos" className="h-9 w-auto shrink-0 sm:h-10" />
+            <span className="font-display text-base font-bold tracking-[0.2em] text-foreground sm:text-xl sm:tracking-widest">
+              BARBEARIA RAMOS
+            </span>
           </Link>
 
-          <div className="flex items-center gap-6">
+          <div className="flex w-full flex-wrap items-center justify-start gap-3 sm:w-auto sm:justify-end sm:gap-6">
             <a href="#servicos" className="text-xs font-body uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
-              Serviços
+              Servicos
             </a>
             <a href="#contato" className="text-xs font-body uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
               Contato
@@ -36,43 +34,46 @@ const Index = () => {
             {loading ? (
               <span className="text-xs uppercase tracking-widest text-muted-foreground">Carregando</span>
             ) : user ? (
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
                 <Link
                   to="/agendamentos#minhas-reservas"
-                  className="text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                  className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground sm:text-xs sm:tracking-widest"
                 >
                   Meus agendamentos
                 </Link>
                 {user.isAdmin ? (
                   <Link
                     to="/admin/agendamentos"
-                    className="text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                    className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground sm:text-xs sm:tracking-widest"
                   >
                     Painel admin
                   </Link>
                 ) : user.role === "collaborator" ? (
                   <Link
                     to="/colaborador/agendamentos"
-                    className="text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                    className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground sm:text-xs sm:tracking-widest"
                   >
                     Minha agenda
                   </Link>
                 ) : null}
                 <Link
                   to="/agendamentos"
-                  className="bg-foreground px-5 py-2 text-xs font-semibold uppercase tracking-widest text-background transition-colors hover:bg-foreground/80"
+                  className="bg-foreground px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-background transition-colors hover:bg-foreground/80 sm:px-5 sm:text-xs sm:tracking-widest"
                 >
                   Agendar
                 </Link>
                 <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-full border border-border" />
-                <button onClick={() => void logout()} className="text-xs uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
+                <button
+                  onClick={() => void logout()}
+                  className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground sm:text-xs sm:tracking-widest"
+                >
                   Sair
                 </button>
               </div>
             ) : (
               <button
-                onClick={handleOpenAuth}
-                className="bg-foreground px-5 py-2 text-xs font-semibold uppercase tracking-widest text-background transition-colors hover:bg-foreground/80"
+                onClick={() => setAuthDialogOpen(true)}
+                className="bg-foreground px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-background transition-colors hover:bg-foreground/80 sm:px-5 sm:text-xs sm:tracking-widest"
               >
                 Entrar
               </button>
@@ -81,7 +82,7 @@ const Index = () => {
         </div>
       </nav>
 
-      <section className="relative flex h-screen items-center justify-center overflow-hidden">
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 pb-16 pt-36 sm:px-0 sm:pb-0 sm:pt-24">
         <div className="absolute inset-0">
           <img
             src={heroImage}
@@ -97,40 +98,40 @@ const Index = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="relative max-w-4xl px-4 text-center"
+          className="relative max-w-4xl px-2 text-center sm:px-4"
         >
-          <img src={logoRamos} alt="Barbearia Ramos" className="mx-auto mb-8 h-32 w-auto md:h-44" />
-          <h1 className="street-brand street-brand-hero mb-4 text-4xl text-foreground md:text-7xl">
+          <img src={logoRamos} alt="Barbearia Ramos" className="mx-auto mb-6 h-24 w-auto sm:mb-8 sm:h-32 md:h-44" />
+          <h1 className="street-brand street-brand-hero mb-4 text-3xl leading-none text-foreground sm:text-4xl md:text-7xl">
             Barbearia Ramos
           </h1>
-          <div className="mx-auto mb-6 h-[2px] w-24 bg-foreground" />
-          <p className="mb-10 font-body text-base uppercase tracking-wide text-muted-foreground md:text-lg">
-            Estilo na rua. Tradição no corte.
+          <div className="mx-auto mb-5 h-[2px] w-20 bg-foreground sm:mb-6 sm:w-24" />
+          <p className="mb-8 px-2 font-body text-sm uppercase tracking-[0.18em] text-muted-foreground sm:mb-10 sm:text-base sm:tracking-wide md:text-lg">
+            Estilo na rua. Tradicao no corte.
           </p>
 
           {user ? (
             <Link
               to="/agendamentos"
-              className="inline-block bg-foreground px-10 py-4 text-sm font-bold uppercase tracking-[0.3em] text-background transition-colors hover:bg-foreground/80"
+              className="inline-flex w-full max-w-xs items-center justify-center bg-foreground px-6 py-4 text-xs font-bold uppercase tracking-[0.28em] text-background transition-colors hover:bg-foreground/80 sm:w-auto sm:max-w-none sm:px-10 sm:text-sm sm:tracking-[0.3em]"
             >
-              Agendar Horário
+              Agendar horario
             </Link>
           ) : (
             <button
-              onClick={handleOpenAuth}
-              className="inline-flex items-center gap-3 bg-foreground px-10 py-4 text-sm font-bold uppercase tracking-[0.3em] text-background transition-colors hover:bg-foreground/80"
+              onClick={() => setAuthDialogOpen(true)}
+              className="inline-flex w-full max-w-xs items-center justify-center gap-3 bg-foreground px-6 py-4 text-xs font-bold uppercase tracking-[0.28em] text-background transition-colors hover:bg-foreground/80 sm:w-auto sm:max-w-none sm:px-10 sm:text-sm sm:tracking-[0.3em]"
             >
-              Entrar para Agendar
+              Entrar para agendar
             </button>
           )}
         </motion.div>
       </section>
 
-      <section id="servicos" className="border-t border-border py-24">
+      <section id="servicos" className="border-t border-border py-16 sm:py-24">
         <div className="container mx-auto px-4">
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="mb-16">
+          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="mb-12 sm:mb-16">
             <p className="mb-2 font-body text-xs uppercase tracking-[0.4em] text-muted-foreground">O que fazemos</p>
-            <h2 className="font-display text-4xl font-bold tracking-wide md:text-6xl">SERVIÇOS</h2>
+            <h2 className="font-display text-3xl font-bold tracking-wide sm:text-4xl md:text-6xl">Servicos</h2>
             <div className="mt-4 h-[2px] w-16 bg-foreground" />
           </motion.div>
 
@@ -142,7 +143,7 @@ const Index = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.08 }}
-                className="group bg-background p-8 transition-colors hover:bg-secondary"
+                className="group bg-background p-6 sm:p-8"
               >
                 <div className="mb-6 flex items-center justify-between">
                   <service.icon className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
@@ -159,17 +160,17 @@ const Index = () => {
         </div>
       </section>
 
-      <section id="contato" className="border-t border-border bg-card py-24">
+      <section id="contato" className="border-t border-border bg-card py-16 sm:py-24">
         <div className="container mx-auto px-4">
           <p className="mb-2 font-body text-xs uppercase tracking-[0.4em] text-muted-foreground">Encontre-nos</p>
-          <h2 className="mb-12 font-display text-4xl font-bold tracking-wide md:text-6xl">CONTATO</h2>
+          <h2 className="mb-10 font-display text-3xl font-bold tracking-wide sm:text-4xl md:text-6xl">Contato</h2>
           <div className="mb-12 h-[2px] w-16 bg-foreground" />
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="flex items-start gap-4">
               <MapPin className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
               <div>
-                <p className="mb-1 font-display text-sm font-semibold tracking-wider">ENDEREÇO</p>
+                <p className="mb-1 font-display text-sm font-semibold tracking-wider">Endereco</p>
                 <p className="font-body text-sm text-muted-foreground">Rua das Barbearias, 123 - Centro</p>
               </div>
             </div>
@@ -177,7 +178,7 @@ const Index = () => {
             <div className="flex items-start gap-4">
               <Phone className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
               <div>
-                <p className="mb-1 font-display text-sm font-semibold tracking-wider">TELEFONE</p>
+                <p className="mb-1 font-display text-sm font-semibold tracking-wider">Telefone</p>
                 <p className="font-body text-sm text-muted-foreground">(11) 99999-9999</p>
               </div>
             </div>
@@ -185,8 +186,8 @@ const Index = () => {
             <div className="flex items-start gap-4">
               <Clock className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
               <div>
-                <p className="mb-1 font-display text-sm font-semibold tracking-wider">HORÁRIO</p>
-                <p className="font-body text-sm text-muted-foreground">Seg-Sáb: 9h - 20h</p>
+                <p className="mb-1 font-display text-sm font-semibold tracking-wider">Horario</p>
+                <p className="font-body text-sm text-muted-foreground">Seg-Sab: 9h - 20h</p>
               </div>
             </div>
           </div>
@@ -194,8 +195,8 @@ const Index = () => {
       </section>
 
       <footer className="border-t border-border py-8">
-        <div className="container mx-auto px-4 text-center font-body text-xs uppercase tracking-[0.3em] text-muted-foreground">
-          © 2026 Barbearia Ramos. Todos os direitos reservados.
+        <div className="container mx-auto px-4 text-center font-body text-[10px] uppercase tracking-[0.24em] text-muted-foreground sm:text-xs sm:tracking-[0.3em]">
+          2026 Barbearia Ramos. Todos os direitos reservados.
         </div>
       </footer>
 

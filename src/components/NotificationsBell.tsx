@@ -123,13 +123,13 @@ export const NotificationsBell = () => {
   }
 
   return (
-    <div className="pointer-events-none fixed right-4 top-24 z-[60]">
+    <div className="pointer-events-none fixed right-3 top-32 z-[60] sm:right-4 sm:top-24">
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             size="icon"
-            className="pointer-events-auto relative h-12 w-12 rounded-full border-border bg-background/95 shadow-lg backdrop-blur-sm"
+            className="pointer-events-auto relative h-11 w-11 rounded-full border-border bg-background/95 shadow-lg backdrop-blur-sm sm:h-12 sm:w-12"
             aria-label="Abrir notificações"
           >
             {unreadCount > 0 ? <BellRing className="text-primary" /> : <Bell className="text-foreground" />}

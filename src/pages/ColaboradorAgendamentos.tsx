@@ -45,15 +45,15 @@ const ColaboradorAgendamentos = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-12 pt-20">
+    <div className="min-h-screen overflow-x-hidden bg-background pb-12 pt-28 sm:pt-20">
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link to="/" className="font-display text-2xl font-bold tracking-wide text-primary">
+        <div className="container mx-auto flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link to="/" className="font-display text-xl font-bold tracking-wide text-primary sm:text-2xl">
             BARBEARIA <span className="text-foreground">RAMOS</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user.barberName || user.name}</span>
-            <button onClick={() => void logout()} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end sm:gap-4">
+            <span className="max-w-[10rem] truncate text-xs text-muted-foreground sm:max-w-none sm:text-sm">{user.barberName || user.name}</span>
+            <button onClick={() => void logout()} className="text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm">
               Sair
             </button>
           </div>
