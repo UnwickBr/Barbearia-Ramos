@@ -1,4 +1,4 @@
-import type { AdminDashboardResponse, Reservation, User } from "@/lib/types";
+import type { AdminDashboardResponse, Reservation, SiteContent, User } from "@/lib/types";
 
 type JsonRequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -29,6 +29,10 @@ export const authApi = {
   googleAccessToken: (accessToken: string) =>
     apiRequest<{ user: User }>("/api/auth/google", { method: "POST", body: { accessToken } }),
   logout: () => apiRequest<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
+};
+
+export const siteContentApi = {
+  get: () => apiRequest<{ content: SiteContent }>("/api/site-content"),
 };
 
 export const reservationsApi = {
@@ -73,4 +77,7 @@ export const adminApi = {
     apiRequest<AdminDashboardResponse>(
       `/api/admin/dashboard?period=${encodeURIComponent(period)}&date=${encodeURIComponent(date)}`,
     ),
+  siteContent: () => apiRequest<{ content: SiteContent }>("/api/site-content"),
+  updateSiteContent: (payload: SiteContent) =>
+    apiRequest<{ content: SiteContent }>("/api/admin/site-content", { method: "PATCH", body: payload }),
 };

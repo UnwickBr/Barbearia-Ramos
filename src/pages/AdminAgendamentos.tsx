@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
 import { ArrowLeft, CalendarDays, CheckCircle2, LoaderCircle, RefreshCcw, Search, ShieldCheck, UserCog, Wallet, XCircle } from "lucide-react";
@@ -12,7 +12,7 @@ import { buildAdminCancellationEmail, buildAdminRescheduleEmail, hasGoogleEmailS
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { Reservation, User } from "@/lib/types";
 
-type AdminView = "agenda" | "users" | "dashboard";
+type AdminView = "agenda" | "users" | "dashboard" | "site";
 type DashboardPeriod = "day" | "week" | "month";
 
 const todayDate = () => new Date().toISOString().slice(0, 10);
@@ -39,6 +39,23 @@ type UserDraft = {
   notes: string;
 };
 
+type SiteContentDraft = {
+  heroTitle: string;
+  heroSubtitle: string;
+  heroPrimaryCta: string;
+  servicesEyebrow: string;
+  servicesTitle: string;
+  contactEyebrow: string;
+  contactTitle: string;
+  addressLabel: string;
+  addressText: string;
+  phoneLabel: string;
+  phoneText: string;
+  hoursLabel: string;
+  hoursText: string;
+  footerText: string;
+};
+
 const AdminAgendamentos = () => {
   const { user, loading, logout, googleAccessToken, connectGoogleEmail } = useAuth();
   const queryClient = useQueryClient();
@@ -50,6 +67,7 @@ const AdminAgendamentos = () => {
   const [cancelInputs, setCancelInputs] = useState<Record<string, string>>({});
   const [rescheduleInputs, setRescheduleInputs] = useState<Record<string, { barberName: string; reservationDate: string; reservationTime: string; reason: string }>>({});
   const [userDrafts, setUserDrafts] = useState<Record<string, UserDraft>>({});
+  const [siteContentDraft, setSiteContentDraft] = useState<SiteContentDraft | null>(null);
 
   const invalidateAll = () => {
     void queryClient.invalidateQueries({ queryKey: ["admin-reservations"] });
@@ -73,6 +91,12 @@ const AdminAgendamentos = () => {
   const dashboardQuery = useQuery({
     queryKey: ["admin-dashboard", dashboardPeriod, dashboardDate],
     queryFn: async () => adminApi.dashboard(dashboardPeriod, dashboardDate),
+    enabled: Boolean(user?.isAdmin),
+  });
+
+  const siteContentQuery = useQuery({
+    queryKey: ["admin-site-content"],
+    queryFn: async () => (await adminApi.siteContent()).content,
     enabled: Boolean(user?.isAdmin),
   });
 
@@ -105,6 +129,15 @@ const AdminAgendamentos = () => {
     onSuccess: invalidateAll,
   });
 
+  const updateSiteContentMutation = useMutation({
+    mutationFn: adminApi.updateSiteContent,
+    onSuccess: (data) => {
+      queryClient.setQueryData(["admin-site-content"], data.content);
+      queryClient.setQueryData(["site-content"], data.content);
+      setSiteContentDraft(data.content);
+    },
+  });
+
   const getUserDraft = (account: User): UserDraft =>
     userDrafts[account.id] ?? {
       role: account.role,
@@ -113,6 +146,8 @@ const AdminAgendamentos = () => {
       phone: account.phone ?? "",
       notes: account.notes ?? "",
     };
+
+  const getSiteContentDraft = (): SiteContentDraft | null => siteContentDraft ?? siteContentQuery.data ?? null;
 
   const agendaSummary = useMemo(() => {
     const reservations = agendaQuery.data ?? [];
@@ -145,6 +180,12 @@ const AdminAgendamentos = () => {
       })),
     [dashboardQuery.data?.stats],
   );
+
+  useEffect(() => {
+    if (siteContentQuery.data && !siteContentDraft) {
+      setSiteContentDraft(siteContentQuery.data);
+    }
+  }, [siteContentDraft, siteContentQuery.data]);
 
   const dashboardChartConfig = {
     lucro: {
@@ -231,6 +272,17 @@ const AdminAgendamentos = () => {
     toast({ title: "Perfil atualizado", description: `Perfil de ${account.name} atualizado.` });
   };
 
+  const handleSaveSiteContent = async () => {
+    const draft = getSiteContentDraft();
+
+    if (!draft) {
+      return;
+    }
+
+    await updateSiteContentMutation.mutateAsync(draft);
+    toast({ title: "Conteudo atualizado", description: "As informacoes do site foram salvas." });
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-background pb-12 pt-28 sm:pt-20">
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
@@ -254,9 +306,9 @@ const AdminAgendamentos = () => {
             <p className="text-muted-foreground">Gerencie agenda, contas e desempenho da equipe.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(["agenda", "users", "dashboard"] as AdminView[]).map((item) => (
+            {(["agenda", "users", "dashboard", "site"] as AdminView[]).map((item) => (
               <button key={item} onClick={() => setView(item)} className={`rounded-md border px-4 py-2 text-sm ${view === item ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
-                {item === "agenda" ? "Agenda" : item === "users" ? "Contas" : "Dashboard"}
+                {item === "agenda" ? "Agenda" : item === "users" ? "Contas" : item === "dashboard" ? "Dashboard" : "Site"}
               </button>
             ))}
           </div>
@@ -472,6 +524,70 @@ const AdminAgendamentos = () => {
                   ))}
                 </div>
               </>
+            )}
+          </div>
+        ) : null}
+
+        {view === "site" ? (
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="font-display text-3xl font-bold">Conteudo do site</h2>
+                <p className="text-muted-foreground">Edite os textos principais da home sem mexer no codigo.</p>
+              </div>
+              <button
+                onClick={() => void handleSaveSiteContent()}
+                disabled={updateSiteContentMutation.isPending || siteContentQuery.isLoading}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <UserCog className="h-4 w-4" /> Salvar alteracoes
+              </button>
+            </div>
+
+            {siteContentQuery.isLoading || !getSiteContentDraft() ? (
+              <div className="flex items-center gap-2 text-muted-foreground"><LoaderCircle className="h-4 w-4 animate-spin" /> Carregando conteudo...</div>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <h3 className="mb-4 font-display text-2xl font-bold">Hero</h3>
+                  <div className="grid gap-4">
+                    <input value={getSiteContentDraft()?.heroTitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroTitle: event.target.value }))} placeholder="Titulo principal" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    <textarea value={getSiteContentDraft()?.heroSubtitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroSubtitle: event.target.value }))} rows={3} placeholder="Subtitulo principal" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    <input value={getSiteContentDraft()?.heroPrimaryCta ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroPrimaryCta: event.target.value }))} placeholder="Texto do botao principal" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <h3 className="mb-4 font-display text-2xl font-bold">Servicos</h3>
+                  <div className="grid gap-4">
+                    <input value={getSiteContentDraft()?.servicesEyebrow ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), servicesEyebrow: event.target.value }))} placeholder="Linha de apoio da secao" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    <input value={getSiteContentDraft()?.servicesTitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), servicesTitle: event.target.value }))} placeholder="Titulo da secao de servicos" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <h3 className="mb-4 font-display text-2xl font-bold">Contato</h3>
+                  <div className="grid gap-4">
+                    <input value={getSiteContentDraft()?.contactEyebrow ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), contactEyebrow: event.target.value }))} placeholder="Linha de apoio da secao" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    <input value={getSiteContentDraft()?.contactTitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), contactTitle: event.target.value }))} placeholder="Titulo da secao contato" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <input value={getSiteContentDraft()?.addressLabel ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), addressLabel: event.target.value }))} placeholder="Rotulo do endereco" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      <input value={getSiteContentDraft()?.addressText ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), addressText: event.target.value }))} placeholder="Texto do endereco" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      <input value={getSiteContentDraft()?.phoneLabel ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), phoneLabel: event.target.value }))} placeholder="Rotulo do telefone" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      <input value={getSiteContentDraft()?.phoneText ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), phoneText: event.target.value }))} placeholder="Telefone" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      <input value={getSiteContentDraft()?.hoursLabel ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), hoursLabel: event.target.value }))} placeholder="Rotulo do horario" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      <input value={getSiteContentDraft()?.hoursText ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), hoursText: event.target.value }))} placeholder="Horario de funcionamento" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <h3 className="mb-4 font-display text-2xl font-bold">Rodape</h3>
+                  <div className="grid gap-4">
+                    <textarea value={getSiteContentDraft()?.footerText ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), footerText: event.target.value }))} rows={4} placeholder="Texto do rodape" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         ) : null}

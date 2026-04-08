@@ -58,3 +58,20 @@ export interface AdminDashboardResponse {
   summary: DashboardSummary;
   stats: EmployeeDashboardStat[];
 }
+
+export interface SiteContent {
+  heroTitle: string;
+  heroSubtitle: string;
+  heroPrimaryCta: string;
+  servicesEyebrow: string;
+  servicesTitle: string;
+  contactEyebrow: string;
+  contactTitle: string;
+  addressLabel: string;
+  addressText: string;
+  phoneLabel: string;
+  phoneText: string;
+  hoursLabel: string;
+  hoursText: string;
+  footerText: string;
+}

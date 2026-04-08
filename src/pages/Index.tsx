@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Clock, MapPin, Phone } from "lucide-react";
@@ -6,11 +7,35 @@ import { AuthDialog } from "@/components/AuthDialog";
 import logoRamos from "@/assets/logo-ramos.png";
 import heroImage from "@/assets/hero-barbershop.png";
 import { useAuth } from "@/contexts/AuthContext";
+import { siteContentApi } from "@/lib/api";
 import { services } from "@/lib/barbershop";
+import type { SiteContent } from "@/lib/types";
+
+const defaultContent: SiteContent = {
+  heroTitle: "Barbearia Ramos",
+  heroSubtitle: "Estilo na rua. Tradicao no corte.",
+  heroPrimaryCta: "Agendar horario",
+  servicesEyebrow: "O que fazemos",
+  servicesTitle: "Servicos",
+  contactEyebrow: "Encontre-nos",
+  contactTitle: "Contato",
+  addressLabel: "Endereco",
+  addressText: "Rua das Barbearias, 123 - Centro",
+  phoneLabel: "Telefone",
+  phoneText: "(11) 99999-9999",
+  hoursLabel: "Horario",
+  hoursText: "Seg-Sab: 9h - 20h",
+  footerText: "2026 Barbearia Ramos. Todos os direitos reservados.",
+};
 
 const Index = () => {
   const { user, logout, loading } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const siteContentQuery = useQuery({
+    queryKey: ["site-content"],
+    queryFn: async () => (await siteContentApi.get()).content,
+  });
+  const content = siteContentQuery.data ?? defaultContent;
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
@@ -102,11 +127,11 @@ const Index = () => {
         >
           <img src={logoRamos} alt="Barbearia Ramos" className="mx-auto mb-6 h-24 w-auto sm:mb-8 sm:h-32 md:h-44" />
           <h1 className="street-brand street-brand-hero mb-4 text-3xl leading-none text-foreground sm:text-4xl md:text-7xl">
-            Barbearia Ramos
+            {content.heroTitle}
           </h1>
           <div className="mx-auto mb-5 h-[2px] w-20 bg-foreground sm:mb-6 sm:w-24" />
           <p className="mb-8 px-2 font-body text-sm uppercase tracking-[0.18em] text-muted-foreground sm:mb-10 sm:text-base sm:tracking-wide md:text-lg">
-            Estilo na rua. Tradicao no corte.
+            {content.heroSubtitle}
           </p>
 
           {user ? (
@@ -114,7 +139,7 @@ const Index = () => {
               to="/agendamentos"
               className="inline-flex w-full max-w-xs items-center justify-center bg-foreground px-6 py-4 text-xs font-bold uppercase tracking-[0.28em] text-background transition-colors hover:bg-foreground/80 sm:w-auto sm:max-w-none sm:px-10 sm:text-sm sm:tracking-[0.3em]"
             >
-              Agendar horario
+              {content.heroPrimaryCta}
             </Link>
           ) : (
             <button
@@ -130,8 +155,8 @@ const Index = () => {
       <section id="servicos" className="border-t border-border py-16 sm:py-24">
         <div className="container mx-auto px-4">
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="mb-12 sm:mb-16">
-            <p className="mb-2 font-body text-xs uppercase tracking-[0.4em] text-muted-foreground">O que fazemos</p>
-            <h2 className="font-display text-3xl font-bold tracking-wide sm:text-4xl md:text-6xl">Servicos</h2>
+            <p className="mb-2 font-body text-xs uppercase tracking-[0.4em] text-muted-foreground">{content.servicesEyebrow}</p>
+            <h2 className="font-display text-3xl font-bold tracking-wide sm:text-4xl md:text-6xl">{content.servicesTitle}</h2>
             <div className="mt-4 h-[2px] w-16 bg-foreground" />
           </motion.div>
 
@@ -162,32 +187,32 @@ const Index = () => {
 
       <section id="contato" className="border-t border-border bg-card py-16 sm:py-24">
         <div className="container mx-auto px-4">
-          <p className="mb-2 font-body text-xs uppercase tracking-[0.4em] text-muted-foreground">Encontre-nos</p>
-          <h2 className="mb-10 font-display text-3xl font-bold tracking-wide sm:text-4xl md:text-6xl">Contato</h2>
+          <p className="mb-2 font-body text-xs uppercase tracking-[0.4em] text-muted-foreground">{content.contactEyebrow}</p>
+          <h2 className="mb-10 font-display text-3xl font-bold tracking-wide sm:text-4xl md:text-6xl">{content.contactTitle}</h2>
           <div className="mb-12 h-[2px] w-16 bg-foreground" />
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="flex items-start gap-4">
               <MapPin className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
               <div>
-                <p className="mb-1 font-display text-sm font-semibold tracking-wider">Endereco</p>
-                <p className="font-body text-sm text-muted-foreground">Rua das Barbearias, 123 - Centro</p>
+                <p className="mb-1 font-display text-sm font-semibold tracking-wider">{content.addressLabel}</p>
+                <p className="font-body text-sm text-muted-foreground">{content.addressText}</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
               <Phone className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
               <div>
-                <p className="mb-1 font-display text-sm font-semibold tracking-wider">Telefone</p>
-                <p className="font-body text-sm text-muted-foreground">(11) 99999-9999</p>
+                <p className="mb-1 font-display text-sm font-semibold tracking-wider">{content.phoneLabel}</p>
+                <p className="font-body text-sm text-muted-foreground">{content.phoneText}</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
               <Clock className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
               <div>
-                <p className="mb-1 font-display text-sm font-semibold tracking-wider">Horario</p>
-                <p className="font-body text-sm text-muted-foreground">Seg-Sab: 9h - 20h</p>
+                <p className="mb-1 font-display text-sm font-semibold tracking-wider">{content.hoursLabel}</p>
+                <p className="font-body text-sm text-muted-foreground">{content.hoursText}</p>
               </div>
             </div>
           </div>
@@ -196,7 +221,7 @@ const Index = () => {
 
       <footer className="border-t border-border py-8">
         <div className="container mx-auto px-4 text-center font-body text-[10px] uppercase tracking-[0.24em] text-muted-foreground sm:text-xs sm:tracking-[0.3em]">
-          2026 Barbearia Ramos. Todos os direitos reservados.
+          {content.footerText}
         </div>
       </footer>
 

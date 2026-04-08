@@ -113,6 +113,46 @@ export const ensureSchema = async () => {
         WHERE r.id = linked_user.reservation_id
           AND linked_user.id IS NOT NULL
       `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS site_content (
+          id TEXT PRIMARY KEY,
+          hero_title TEXT NOT NULL DEFAULT 'Barbearia Ramos',
+          hero_subtitle TEXT NOT NULL DEFAULT 'Estilo na rua. Tradicao no corte.',
+          hero_primary_cta TEXT NOT NULL DEFAULT 'Agendar horario',
+          services_eyebrow TEXT NOT NULL DEFAULT 'O que fazemos',
+          services_title TEXT NOT NULL DEFAULT 'Servicos',
+          contact_eyebrow TEXT NOT NULL DEFAULT 'Encontre-nos',
+          contact_title TEXT NOT NULL DEFAULT 'Contato',
+          address_label TEXT NOT NULL DEFAULT 'Endereco',
+          address_text TEXT NOT NULL DEFAULT 'Rua das Barbearias, 123 - Centro',
+          phone_label TEXT NOT NULL DEFAULT 'Telefone',
+          phone_text TEXT NOT NULL DEFAULT '(11) 99999-9999',
+          hours_label TEXT NOT NULL DEFAULT 'Horario',
+          hours_text TEXT NOT NULL DEFAULT 'Seg-Sab: 9h - 20h',
+          footer_text TEXT NOT NULL DEFAULT '2026 Barbearia Ramos. Todos os direitos reservados.',
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hero_title TEXT NOT NULL DEFAULT 'Barbearia Ramos'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hero_subtitle TEXT NOT NULL DEFAULT 'Estilo na rua. Tradicao no corte.'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hero_primary_cta TEXT NOT NULL DEFAULT 'Agendar horario'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS services_eyebrow TEXT NOT NULL DEFAULT 'O que fazemos'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS services_title TEXT NOT NULL DEFAULT 'Servicos'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS contact_eyebrow TEXT NOT NULL DEFAULT 'Encontre-nos'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS contact_title TEXT NOT NULL DEFAULT 'Contato'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS address_label TEXT NOT NULL DEFAULT 'Endereco'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS address_text TEXT NOT NULL DEFAULT 'Rua das Barbearias, 123 - Centro'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS phone_label TEXT NOT NULL DEFAULT 'Telefone'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS phone_text TEXT NOT NULL DEFAULT '(11) 99999-9999'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hours_label TEXT NOT NULL DEFAULT 'Horario'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hours_text TEXT NOT NULL DEFAULT 'Seg-Sab: 9h - 20h'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS footer_text TEXT NOT NULL DEFAULT '2026 Barbearia Ramos. Todos os direitos reservados.'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
+      await sql`
+        INSERT INTO site_content (id)
+        VALUES ('main')
+        ON CONFLICT (id) DO NOTHING
+      `;
     })();
   }
 
