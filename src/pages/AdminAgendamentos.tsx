@@ -77,6 +77,7 @@ const AdminAgendamentos = () => {
   const [rescheduleInputs, setRescheduleInputs] = useState<Record<string, { barberName: string; reservationDate: string; reservationTime: string; reason: string }>>({});
   const [userDrafts, setUserDrafts] = useState<Record<string, UserDraft>>({});
   const [siteContentDraft, setSiteContentDraft] = useState<SiteContentDraft | null>(null);
+  const [barberScheduleDrafts, setBarberScheduleDrafts] = useState<Record<string, string>>({});
 
   const invalidateAll = () => {
     void queryClient.invalidateQueries({ queryKey: ["admin-reservations"] });
@@ -160,6 +161,8 @@ const AdminAgendamentos = () => {
   const getSiteContentDraft = (): SiteContentDraft | null => siteContentDraft ?? siteContentQuery.data ?? null;
   const siteDraft = getSiteContentDraft();
   const getBarberScheduleOptions = (barberName: string) => siteDraft?.barberSchedules?.[barberName] ?? [];
+  const getBarberScheduleDraft = (barberName: string) =>
+    barberScheduleDrafts[barberName] ?? (siteDraft?.barberSchedules?.[barberName] ?? []).join(", ");
 
   const agendaSummary = useMemo(() => {
     const reservations = agendaQuery.data ?? [];
@@ -201,6 +204,21 @@ const AdminAgendamentos = () => {
       setSiteContentDraft(siteContentQuery.data);
     }
   }, [siteContentDraft, siteContentQuery.data]);
+
+  useEffect(() => {
+    if (!siteContentQuery.data) {
+      return;
+    }
+
+    setBarberScheduleDrafts(
+      Object.fromEntries(
+        siteContentQuery.data.barbers.map((barber) => [
+          barber,
+          (siteContentQuery.data.barberSchedules[barber] ?? []).join(", "),
+        ]),
+      ),
+    );
+  }, [siteContentQuery.data]);
 
   useEffect(() => {
     const firstBarber = agendaSummary.byBarber[0]?.barber ?? "";
@@ -309,7 +327,20 @@ const AdminAgendamentos = () => {
       return;
     }
 
-    await updateSiteContentMutation.mutateAsync(draft);
+    const normalizedSchedules = Object.fromEntries(
+      draft.barbers.map((barber) => [
+        barber,
+        (barberScheduleDrafts[barber] ?? "")
+          .split(",")
+          .map((slot) => slot.trim())
+          .filter((slot) => /^\d{2}:\d{2}$/.test(slot)),
+      ]),
+    );
+
+    await updateSiteContentMutation.mutateAsync({
+      ...draft,
+      barberSchedules: normalizedSchedules,
+    });
     toast({ title: "Conteudo atualizado", description: "As informacoes do site foram salvas." });
   };
 
@@ -335,17 +366,9 @@ const AdminAgendamentos = () => {
   };
 
   const updateBarberScheduleDraft = (barberName: string, value: string) => {
-    const normalizedSlots = value
-      .split(",")
-      .map((slot) => slot.trim())
-      .filter((slot) => /^\d{2}:\d{2}$/.test(slot));
-
-    updateSiteDraft((draft) => ({
-      ...draft,
-      barberSchedules: {
-        ...draft.barberSchedules,
-        [barberName]: normalizedSlots,
-      },
+    setBarberScheduleDrafts((current) => ({
+      ...current,
+      [barberName]: value,
     }));
   };
 
@@ -811,46 +834,78 @@ const AdminAgendamentos = () => {
                         <div key={`site-barber-${index}`} className="flex flex-col gap-3 rounded-lg border border-border bg-background/60 p-4 sm:flex-row sm:items-end">
                           <div className="flex-1">
                             <label className="mb-2 block text-sm font-medium text-foreground">Nome do barbeiro</label>
-                            <input value={barber} onChange={(event) => updateSiteDraft((draft) => {
+                            <input value={barber} onChange={(event) => {
                               const nextName = event.target.value;
-                              const nextBarbers = draft.barbers.map((item, itemIndex) => itemIndex === index ? nextName : item);
-                              const currentSchedule = draft.barberSchedules[barber] ?? [];
-                              const nextSchedules = { ...draft.barberSchedules };
+                              setBarberScheduleDrafts((current) => {
+                                const currentDraft = current[barber] ?? (siteDraft?.barberSchedules?.[barber] ?? []).join(", ");
+                                const nextDrafts = { ...current };
 
-                              if (barber !== nextName) {
-                                delete nextSchedules[barber];
-                              }
+                                if (barber !== nextName) {
+                                  delete nextDrafts[barber];
+                                }
 
-                              if (nextName) {
-                                nextSchedules[nextName] = currentSchedule;
-                              }
+                                if (nextName) {
+                                  nextDrafts[nextName] = currentDraft;
+                                }
 
-                              return {
-                                ...draft,
-                                barbers: nextBarbers,
-                                barberSchedules: nextSchedules,
-                              };
-                            })} className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                                return nextDrafts;
+                              });
+
+                              updateSiteDraft((draft) => {
+                                const nextBarbers = draft.barbers.map((item, itemIndex) => itemIndex === index ? nextName : item);
+                                const currentSchedule = draft.barberSchedules[barber] ?? [];
+                                const nextSchedules = { ...draft.barberSchedules };
+
+                                if (barber !== nextName) {
+                                  delete nextSchedules[barber];
+                                }
+
+                                if (nextName) {
+                                  nextSchedules[nextName] = currentSchedule;
+                                }
+
+                                return {
+                                  ...draft,
+                                  barbers: nextBarbers,
+                                  barberSchedules: nextSchedules,
+                                };
+                              });
+                            }} className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                           </div>
-                          <button onClick={() => updateSiteDraft((draft) => {
-                            const nextBarbers = draft.barbers.filter((_, itemIndex) => itemIndex !== index);
-                            const nextSchedules = { ...draft.barberSchedules };
-                            delete nextSchedules[barber];
-                            return { ...draft, barbers: nextBarbers, barberSchedules: nextSchedules };
-                          })} className="text-sm text-destructive transition-colors hover:text-destructive/80">Remover</button>
+                          <button onClick={() => {
+                            setBarberScheduleDrafts((current) => {
+                              const nextDrafts = { ...current };
+                              delete nextDrafts[barber];
+                              return nextDrafts;
+                            });
+
+                            updateSiteDraft((draft) => {
+                              const nextBarbers = draft.barbers.filter((_, itemIndex) => itemIndex !== index);
+                              const nextSchedules = { ...draft.barberSchedules };
+                              delete nextSchedules[barber];
+                              return { ...draft, barbers: nextBarbers, barberSchedules: nextSchedules };
+                            });
+                          }} className="text-sm text-destructive transition-colors hover:text-destructive/80">Remover</button>
                         </div>
                       ))}
-                      <button onClick={() => updateSiteDraft((draft) => {
-                        const newBarberName = `Novo barbeiro ${draft.barbers.length + 1}`;
-                        return {
+                      <button onClick={() => {
+                        const newBarberName = `Novo barbeiro ${(siteDraft?.barbers.length ?? 0) + 1}`;
+                        const defaultSchedule = "09:00, 09:30, 10:00, 10:30, 11:00, 11:30";
+
+                        setBarberScheduleDrafts((current) => ({
+                          ...current,
+                          [newBarberName]: defaultSchedule,
+                        }));
+
+                        updateSiteDraft((draft) => ({
                           ...draft,
                           barbers: [...draft.barbers, newBarberName],
                           barberSchedules: {
                             ...draft.barberSchedules,
                             [newBarberName]: ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30"],
                           },
-                        };
-                      })} className="inline-flex items-center justify-center rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40">Adicionar barbeiro</button>
+                        }));
+                      }} className="inline-flex items-center justify-center rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40">Adicionar barbeiro</button>
                     </div>
                     <div className="grid gap-3">
                       <label className="text-sm font-medium text-foreground">Horarios por colaborador</label>
@@ -858,7 +913,7 @@ const AdminAgendamentos = () => {
                         <div key={`site-barber-schedule-${index}`} className="rounded-lg border border-border bg-background/60 p-4">
                           <label className="mb-2 block text-sm font-medium text-foreground">{barber || `Barbeiro ${index + 1}`}</label>
                           <textarea
-                            value={(siteDraft.barberSchedules[barber] ?? []).join(", ")}
+                            value={getBarberScheduleDraft(barber)}
                             onChange={(event) => updateBarberScheduleDraft(barber, event.target.value)}
                             rows={3}
                             className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none"
