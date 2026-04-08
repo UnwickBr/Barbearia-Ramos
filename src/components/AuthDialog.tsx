@@ -10,13 +10,26 @@ type AuthDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
+type AuthMode = "login" | "register";
+
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, loginWithPassword, registerWithPassword } = useAuth();
+  const [mode, setMode] = useState<AuthMode>("login");
   const [googleReady, setGoogleReady] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  const [startingLogin, setStartingLogin] = useState(false);
+  const [startingGoogleLogin, setStartingGoogleLogin] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [registerFirstName, setRegisterFirstName] = useState("");
+  const [registerLastName, setRegisterLastName] = useState("");
+  const [registerBirthDate, setRegisterBirthDate] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
 
   useEffect(() => {
     if (!open || !googleClientId) {
@@ -37,41 +50,120 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
       return;
     }
 
-    setStartingLogin(true);
+    setStartingGoogleLogin(true);
     setGoogleError(null);
     void loginWithGoogle(true)
       .then(() => onOpenChange(false))
       .catch((error) => setGoogleError(error instanceof Error ? error.message : "Falha ao entrar com Google."))
-      .finally(() => setStartingLogin(false));
+      .finally(() => setStartingGoogleLogin(false));
+  };
+
+  const handleSubmit = () => {
+    setSubmitting(true);
+    setFormError(null);
+
+    const action = mode === "login"
+      ? loginWithPassword(loginEmail, loginPassword)
+      : registerWithPassword({
+          firstName: registerFirstName,
+          lastName: registerLastName,
+          birthDate: registerBirthDate,
+          email: registerEmail,
+          password: registerPassword,
+          confirmPassword: registerConfirmPassword,
+        });
+
+    void action
+      .then(() => onOpenChange(false))
+      .catch((error) => setFormError(error instanceof Error ? error.message : "Nao foi possivel concluir a autenticacao."))
+      .finally(() => setSubmitting(false));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-border bg-card">
+      <DialogContent className="max-w-lg border-border bg-card">
         <DialogHeader>
-          <DialogTitle className="font-display text-3xl tracking-wide">Entrar com Google</DialogTitle>
+          <DialogTitle className="font-display text-3xl tracking-wide">{mode === "login" ? "Entrar" : "Criar conta"}</DialogTitle>
           <DialogDescription className="font-body">
-            O acesso a Barbearia Ramos acontece exclusivamente com sua conta Google.
+            Use Google ou e-mail e senha para acessar a Barbearia Ramos.
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex gap-2">
+          <Button type="button" variant={mode === "login" ? "default" : "outline"} className="flex-1" onClick={() => setMode("login")}>
+            Entrar
+          </Button>
+          <Button type="button" variant={mode === "register" ? "default" : "outline"} className="flex-1" onClick={() => setMode("register")}>
+            Criar conta
+          </Button>
+        </div>
+
         <div className="rounded-lg border border-border bg-secondary/40 p-5">
           <p className="mb-4 text-sm text-muted-foreground">
-            Use sua conta Google para entrar e acessar suas reservas. As permissoes de calendario e e-mail so serao solicitadas quando voce usar esses recursos.
+            {mode === "login"
+              ? "Entre com sua conta para acessar reservas e agenda."
+              : "Crie sua conta com nome, sobrenome, data de nascimento, e-mail e senha."}
           </p>
 
-          <Button type="button" className="w-full" onClick={handleGoogleLogin} disabled={!googleReady || startingLogin}>
-            {startingLogin ? <LoaderCircle className="animate-spin" /> : null}
+          {mode === "login" ? (
+            <div className="grid gap-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">E-mail</label>
+                <input value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} type="email" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">Senha</label>
+                <input value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} type="password" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">Nome</label>
+                  <input value={registerFirstName} onChange={(event) => setRegisterFirstName(event.target.value)} className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">Sobrenome</label>
+                  <input value={registerLastName} onChange={(event) => setRegisterLastName(event.target.value)} className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">Data de nascimento</label>
+                <input value={registerBirthDate} onChange={(event) => setRegisterBirthDate(event.target.value)} type="date" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">E-mail</label>
+                <input value={registerEmail} onChange={(event) => setRegisterEmail(event.target.value)} type="email" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">Senha</label>
+                  <input value={registerPassword} onChange={(event) => setRegisterPassword(event.target.value)} type="password" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">Confirmar senha</label>
+                  <input value={registerConfirmPassword} onChange={(event) => setRegisterConfirmPassword(event.target.value)} type="password" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Button type="button" className="mt-4 w-full" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? <LoaderCircle className="animate-spin" /> : null}
+            {mode === "login" ? "Entrar com e-mail" : "Criar conta"}
+          </Button>
+
+          <div className="my-4 h-px bg-border" />
+
+          <Button type="button" variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={!googleReady || startingGoogleLogin}>
+            {startingGoogleLogin ? <LoaderCircle className="animate-spin" /> : null}
             Continuar com Google
           </Button>
 
-          {!googleClientId ? (
-            <p className="mt-4 text-sm text-destructive">O login Google nao esta configurado neste ambiente.</p>
-          ) : null}
-
-          {googleClientId && !googleReady && !googleError ? (
-            <div className="mt-4 rounded-md border border-border bg-background/60 px-4 py-3 text-center text-sm text-muted-foreground">
-              Carregando integracao do Google...
+          {formError ? (
+            <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {formError}
             </div>
           ) : null}
 
@@ -79,9 +171,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
             <div className="mt-4 space-y-2 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               <p>{googleError}</p>
               <p>
-                Confirme no Google Cloud se o origin{" "}
-                <span className="font-semibold">https://barbearia-ramos-demo.vercel.app</span>{" "}
-                esta em <span className="font-semibold">Authorized JavaScript origins</span>.
+                Confirme no Google Cloud se o origin <span className="font-semibold">https://barbearia-ramos-demo.vercel.app</span> esta autorizado.
               </p>
             </div>
           ) : null}

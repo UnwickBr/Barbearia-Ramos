@@ -24,10 +24,21 @@ async function apiRequest<T>(url: string, options: JsonRequestOptions = {}) {
 
 export const authApi = {
   me: () => apiRequest<{ user: User | null }>("/api/auth/me"),
+  updateProfile: (payload: { firstName: string; lastName: string; birthDate?: string | null; phone?: string | null; photoUrl?: string | null }) =>
+    apiRequest<{ user: User }>("/api/auth/me", { method: "PATCH", body: payload }),
   google: (credential: string) =>
     apiRequest<{ user: User }>("/api/auth/google", { method: "POST", body: { credential } }),
   googleAccessToken: (accessToken: string) =>
     apiRequest<{ user: User }>("/api/auth/google", { method: "POST", body: { accessToken } }),
+  password: (payload: {
+    action: "register" | "login";
+    firstName?: string;
+    lastName?: string;
+    birthDate?: string;
+    email: string;
+    password: string;
+    confirmPassword?: string;
+  }) => apiRequest<{ user: User }>("/api/auth/password", { method: "POST", body: payload }),
   logout: () => apiRequest<{ success: boolean }>("/api/auth/logout", { method: "POST" }),
 };
 

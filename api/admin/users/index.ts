@@ -1,7 +1,7 @@
 import { ensureSchema, sql } from "../../../server/db.js";
 import { sendJson } from "../../../server/http.js";
 import type { ApiRequest, ApiResponse } from "../../../server/types.js";
-import { getAuthenticatedUser } from "../../../server/user.js";
+import { getAuthenticatedUser, splitUserName } from "../../../server/user.js";
 
 type UserRow = {
   id: string;
@@ -10,6 +10,7 @@ type UserRow = {
   is_admin: boolean;
   role: "admin" | "collaborator" | "customer";
   barber_name: string | null;
+  birth_date: string | null;
   photo_url: string | null;
   phone: string | null;
   notes: string | null;
@@ -18,12 +19,14 @@ type UserRow = {
 };
 
 const mapAdminUser = (user: UserRow) => ({
+  ...splitUserName(user.name),
   id: user.id,
   name: user.name,
   email: user.email,
   isAdmin: user.is_admin,
   role: user.is_admin ? "admin" : user.role,
   barberName: user.barber_name,
+  birthDate: user.birth_date,
   photoUrl: user.photo_url,
   avatarUrl: user.photo_url || user.avatar_url,
   phone: user.phone,
@@ -53,13 +56,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const rows = search
     ? ((await sql`
-        SELECT id, name, email, is_admin, role, barber_name, photo_url, phone, notes, avatar_url, created_at
+        SELECT id, name, email, is_admin, role, barber_name, birth_date, photo_url, phone, notes, avatar_url, created_at
         FROM users
         WHERE LOWER(name) LIKE ${`%${search}%`} OR LOWER(email) LIKE ${`%${search}%`}
         ORDER BY created_at DESC
       `) as UserRow[])
     : ((await sql`
-        SELECT id, name, email, is_admin, role, barber_name, photo_url, phone, notes, avatar_url, created_at
+        SELECT id, name, email, is_admin, role, barber_name, birth_date, photo_url, phone, notes, avatar_url, created_at
         FROM users
         ORDER BY created_at DESC
       `) as UserRow[]);

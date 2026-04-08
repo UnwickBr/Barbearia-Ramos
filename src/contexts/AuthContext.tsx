@@ -17,6 +17,9 @@ interface AuthContextType {
   googleAccessToken: string | null;
   loginWithGoogleAccessToken: (accessToken: string, scopes?: string) => Promise<void>;
   loginWithGoogle: (forceConsent?: boolean) => Promise<void>;
+  loginWithPassword: (email: string, password: string) => Promise<void>;
+  registerWithPassword: (payload: { firstName: string; lastName: string; birthDate: string; email: string; password: string; confirmPassword: string }) => Promise<void>;
+  updateProfile: (payload: { firstName: string; lastName: string; birthDate?: string | null; phone?: string | null; photoUrl?: string | null }) => Promise<void>;
   connectGoogleCalendar: (forceConsent?: boolean) => Promise<string>;
   connectGoogleEmail: (forceConsent?: boolean) => Promise<string>;
   logout: () => Promise<void>;
@@ -66,6 +69,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
+  const loginWithPassword = useCallback(async (email: string, password: string) => {
+    const response = await authApi.password({ action: "login", email, password });
+    setUser(response.user);
+    toast({
+      title: "Login realizado",
+      description: `Bem-vindo de volta, ${response.user.firstName || response.user.name}.`,
+    });
+  }, []);
+
+  const registerWithPassword = useCallback(async (payload: { firstName: string; lastName: string; birthDate: string; email: string; password: string; confirmPassword: string }) => {
+    const response = await authApi.password({ action: "register", ...payload });
+    setUser(response.user);
+    toast({
+      title: "Conta criada",
+      description: `Bem-vindo, ${response.user.firstName || response.user.name}.`,
+    });
+  }, []);
+
+  const updateProfile = useCallback(async (payload: { firstName: string; lastName: string; birthDate?: string | null; phone?: string | null; photoUrl?: string | null }) => {
+    const response = await authApi.updateProfile(payload);
+    setUser(response.user);
+    toast({
+      title: "Perfil atualizado",
+      description: "Seus dados foram salvos.",
+    });
+  }, []);
+
   const loginWithGoogle = useCallback(async (forceConsent = false) => {
     const response = await requestGoogleLoginAccessToken(forceConsent ? "consent" : "");
     await loginWithGoogleAccessToken(response.accessToken, response.scope);
@@ -101,12 +131,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       googleAccessToken,
       loginWithGoogleAccessToken,
       loginWithGoogle,
+      loginWithPassword,
+      registerWithPassword,
+      updateProfile,
       connectGoogleCalendar,
       connectGoogleEmail,
       logout,
       refreshUser,
     }),
-    [connectGoogleCalendar, connectGoogleEmail, googleAccessToken, loading, loginWithGoogle, loginWithGoogleAccessToken, user],
+    [connectGoogleCalendar, connectGoogleEmail, googleAccessToken, loading, loginWithGoogle, loginWithGoogleAccessToken, loginWithPassword, registerWithPassword, updateProfile, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

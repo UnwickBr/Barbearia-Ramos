@@ -591,6 +591,9 @@ const Agendamentos = () => {
             <Link to="/agendamentos#minhas-reservas" className="text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm">
               Meus agendamentos
             </Link>
+            <Link to="/perfil" className="text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm">
+              Perfil
+            </Link>
             {user.isAdmin ? (
               <Link to="/admin/agendamentos" className="text-xs text-muted-foreground transition-colors hover:text-foreground sm:text-sm">
                 Painel admin

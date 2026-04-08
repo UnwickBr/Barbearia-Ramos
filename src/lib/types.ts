@@ -1,6 +1,8 @@
 export interface User {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   isAdmin: boolean;
   role: "admin" | "collaborator" | "customer";
@@ -8,6 +10,7 @@ export interface User {
   photoUrl: string | null;
   avatarUrl: string;
   phone: string | null;
+  birthDate: string | null;
   notes: string | null;
   createdAt: string;
 }

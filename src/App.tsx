@@ -9,6 +9,7 @@ import Index from "./pages/Index.tsx";
 import Agendamentos from "./pages/Agendamentos.tsx";
 import AdminAgendamentos from "./pages/AdminAgendamentos.tsx";
 import ColaboradorAgendamentos from "./pages/ColaboradorAgendamentos.tsx";
+import Perfil from "./pages/Perfil.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/agendamentos" element={<Agendamentos />} />
             <Route path="/admin/agendamentos" element={<AdminAgendamentos />} />
             <Route path="/colaborador/agendamentos" element={<ColaboradorAgendamentos />} />
+            <Route path="/perfil" element={<Perfil />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

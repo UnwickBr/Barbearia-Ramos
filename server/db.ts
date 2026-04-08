@@ -25,6 +25,7 @@ export const ensureSchema = async () => {
           barber_name TEXT,
           google_sub TEXT UNIQUE,
           password_hash TEXT,
+          birth_date DATE,
           photo_url TEXT,
           phone TEXT,
           notes TEXT,
@@ -37,6 +38,7 @@ export const ensureSchema = async () => {
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS barber_name TEXT`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT`;
       await sql`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date DATE`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`;
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS notes TEXT`;

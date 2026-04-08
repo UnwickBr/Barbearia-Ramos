@@ -98,6 +98,12 @@ const Index = () => {
                 >
                   Agendar
                 </Link>
+                <Link
+                  to="/perfil"
+                  className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground sm:text-xs sm:tracking-widest"
+                >
+                  Perfil
+                </Link>
                 <img src={user.avatarUrl} alt={user.name} className="h-8 w-8 rounded-full border border-border" />
                 <button
                   onClick={() => void logout()}

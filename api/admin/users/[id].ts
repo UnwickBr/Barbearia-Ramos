@@ -2,7 +2,7 @@ import { ensureSchema, sql } from "../../../server/db.js";
 import { parseJsonBody, sendJson } from "../../../server/http.js";
 import { getSiteContentRow, mapSiteContent } from "../../../server/site-content.js";
 import type { ApiRequest, ApiResponse } from "../../../server/types.js";
-import { getAuthenticatedUser } from "../../../server/user.js";
+import { getAuthenticatedUser, splitUserName } from "../../../server/user.js";
 
 type UpdateUserBody = {
   role?: "admin" | "collaborator" | "customer";
@@ -19,6 +19,7 @@ type UserRow = {
   is_admin: boolean;
   role: "admin" | "collaborator" | "customer";
   barber_name: string | null;
+  birth_date: string | null;
   photo_url: string | null;
   phone: string | null;
   notes: string | null;
@@ -27,12 +28,14 @@ type UserRow = {
 };
 
 const mapAdminUser = (user: UserRow) => ({
+  ...splitUserName(user.name),
   id: user.id,
   name: user.name,
   email: user.email,
   isAdmin: user.is_admin,
   role: user.is_admin ? "admin" : user.role,
   barberName: user.barber_name,
+  birthDate: user.birth_date,
   photoUrl: user.photo_url,
   avatarUrl: user.photo_url || user.avatar_url,
   phone: user.phone,
@@ -66,7 +69,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   const existing = (await sql`
-    SELECT id, name, email, is_admin, role, barber_name, photo_url, phone, notes, avatar_url, created_at
+    SELECT id, name, email, is_admin, role, barber_name, birth_date, photo_url, phone, notes, avatar_url, created_at
     FROM users
     WHERE id = ${userId}
     LIMIT 1
@@ -101,7 +104,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       phone = ${phone},
       notes = ${notes}
     WHERE id = ${userId}
-    RETURNING id, name, email, is_admin, role, barber_name, photo_url, phone, notes, avatar_url, created_at
+    RETURNING id, name, email, is_admin, role, barber_name, birth_date, photo_url, phone, notes, avatar_url, created_at
   `) as UserRow[];
 
   if (role === "collaborator" && barberName) {
