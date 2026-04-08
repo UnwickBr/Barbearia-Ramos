@@ -2,12 +2,14 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
 import { ArrowLeft, CalendarDays, CheckCircle2, LoaderCircle, RefreshCcw, Search, ShieldCheck, UserCog, Wallet, XCircle } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { adminApi, reservationsApi } from "@/lib/api";
 import { barbers, timeSlots } from "@/lib/barbershop";
 import { formatReservationDate } from "@/lib/dates";
 import { buildAdminCancellationEmail, buildAdminRescheduleEmail, hasGoogleEmailScopes, isGoogleAuthError, sendGmailMessage } from "@/lib/google";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { Reservation, User } from "@/lib/types";
 
 type AdminView = "agenda" | "users" | "dashboard";
@@ -25,6 +27,9 @@ const roleLabel: Record<User["role"], string> = {
   collaborator: "Colaborador",
   customer: "Cliente",
 };
+
+const formatCurrency = (value: number) =>
+  `R$ ${value.toFixed(2).replace(".", ",")}`;
 
 type UserDraft = {
   role: User["role"];
@@ -129,6 +134,28 @@ const AdminAgendamentos = () => {
       cancelled: reservations.filter((reservation) => reservation.status === "cancelled").length,
     };
   }, [agendaQuery.data]);
+
+  const dashboardChartData = useMemo(
+    () =>
+      (dashboardQuery.data?.stats ?? []).map((stat) => ({
+        barberName: stat.barberName,
+        lucro: Number(stat.totalRevenue.toFixed(2)),
+        concluidos: stat.completedCount,
+        pendentes: stat.pendingCount,
+      })),
+    [dashboardQuery.data?.stats],
+  );
+
+  const dashboardChartConfig = {
+    lucro: {
+      label: "Lucro bruto",
+      color: "hsl(var(--primary))",
+    },
+    concluidos: {
+      label: "Concluidos",
+      color: "hsl(142 70% 45%)",
+    },
+  } as const;
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-background"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -374,11 +401,69 @@ const AdminAgendamentos = () => {
               <>
                 <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">Periodo analisado: {formatReservationDate(dashboardQuery.data?.startDate ?? dashboardDate)} a {formatReservationDate(dashboardQuery.data?.endDate ?? dashboardDate)}</div>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border border-border bg-card p-5">
+                    <div className="mb-4 flex items-center justify-between"><h3 className="font-display text-2xl font-bold">Lucro</h3><Wallet className="h-5 w-5 text-primary" /></div>
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <p className="font-display text-3xl font-bold text-foreground">{formatCurrency(dashboardQuery.data?.summary.totalProfit ?? 0)}</p>
+                      <p>Lucro bruto do periodo filtrado.</p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-border bg-card p-5">
+                    <div className="mb-4 flex items-center justify-between"><h3 className="font-display text-2xl font-bold">Concluidos</h3><CheckCircle2 className="h-5 w-5 text-emerald-300" /></div>
+                    <p className="font-display text-3xl font-bold text-foreground">{dashboardQuery.data?.summary.completedCount ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-card p-5">
+                    <div className="mb-4 flex items-center justify-between"><h3 className="font-display text-2xl font-bold">Pendentes</h3><RefreshCcw className="h-5 w-5 text-primary" /></div>
+                    <p className="font-display text-3xl font-bold text-foreground">{dashboardQuery.data?.summary.pendingCount ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-card p-5">
+                    <div className="mb-4 flex items-center justify-between"><h3 className="font-display text-2xl font-bold">Cancelados</h3><XCircle className="h-5 w-5 text-destructive" /></div>
+                    <p className="font-display text-3xl font-bold text-foreground">{dashboardQuery.data?.summary.cancelledCount ?? 0}</p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-5">
+                  <div className="mb-5">
+                    <h3 className="font-display text-2xl font-bold">Grafico por colaborador</h3>
+                    <p className="text-sm text-muted-foreground">Comparativo visual de lucro bruto e atendimentos concluidos por barbeiro.</p>
+                  </div>
+                  <ChartContainer config={dashboardChartConfig} className="h-[320px] w-full">
+                    <BarChart data={dashboardChartData} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="barberName"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                      />
+                      <YAxis yAxisId="left" tickLine={false} axisLine={false} tickMargin={10} />
+                      <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tickMargin={10} />
+                      <ChartTooltip
+                        cursor={false}
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value, name) => (
+                              <div className="flex min-w-[10rem] items-center justify-between gap-3">
+                                <span>{name === "lucro" ? "Lucro bruto" : "Concluidos"}</span>
+                                <span className="font-mono font-medium text-foreground">
+                                  {name === "lucro" ? formatCurrency(Number(value)) : Number(value)}
+                                </span>
+                              </div>
+                            )}
+                          />
+                        }
+                      />
+                      <Bar yAxisId="left" dataKey="lucro" fill="var(--color-lucro)" radius={[6, 6, 0, 0]} />
+                      <Bar yAxisId="right" dataKey="concluidos" fill="var(--color-concluidos)" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {(dashboardQuery.data?.stats ?? []).map((stat) => (
                     <div key={stat.barberName} className="rounded-xl border border-border bg-card p-5">
                       <div className="mb-4 flex items-center justify-between"><h3 className="font-display text-2xl font-bold">{stat.barberName}</h3><Wallet className="h-5 w-5 text-primary" /></div>
                       <div className="space-y-2 text-sm text-muted-foreground">
-                        <p>Rendimento: R$ {stat.totalRevenue.toFixed(2).replace(".", ",")}</p>
+                        <p>Rendimento: {formatCurrency(stat.totalRevenue)}</p>
+                        <p>Lucro bruto: {formatCurrency(stat.totalRevenue)}</p>
                         <p>Pendentes: {stat.pendingCount}</p>
                         <p>Concluidos: {stat.completedCount}</p>
                         <p>Cancelados: {stat.cancelledCount}</p>

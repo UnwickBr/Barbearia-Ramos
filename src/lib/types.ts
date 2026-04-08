@@ -43,3 +43,18 @@ export interface EmployeeDashboardStat {
   completedCount: number;
   cancelledCount: number;
 }
+
+export interface DashboardSummary {
+  totalProfit: number;
+  pendingCount: number;
+  completedCount: number;
+  cancelledCount: number;
+}
+
+export interface AdminDashboardResponse {
+  period: string;
+  startDate: string;
+  endDate: string;
+  summary: DashboardSummary;
+  stats: EmployeeDashboardStat[];
+}

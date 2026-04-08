@@ -1,4 +1,4 @@
-import type { EmployeeDashboardStat, Reservation, User } from "@/lib/types";
+import type { AdminDashboardResponse, Reservation, User } from "@/lib/types";
 
 type JsonRequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -70,7 +70,7 @@ export const adminApi = {
   ) =>
     apiRequest<{ user: User }>(`/api/admin/users/${userId}`, { method: "PATCH", body: payload }),
   dashboard: (period: "day" | "week" | "month", date: string) =>
-    apiRequest<{ period: string; startDate: string; endDate: string; stats: EmployeeDashboardStat[] }>(
+    apiRequest<AdminDashboardResponse>(
       `/api/admin/dashboard?period=${encodeURIComponent(period)}&date=${encodeURIComponent(date)}`,
     ),
 };

@@ -88,10 +88,26 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     };
   });
 
+  const summary = stats.reduce(
+    (accumulator, stat) => ({
+      totalProfit: accumulator.totalProfit + stat.totalRevenue,
+      pendingCount: accumulator.pendingCount + stat.pendingCount,
+      completedCount: accumulator.completedCount + stat.completedCount,
+      cancelledCount: accumulator.cancelledCount + stat.cancelledCount,
+    }),
+    {
+      totalProfit: 0,
+      pendingCount: 0,
+      completedCount: 0,
+      cancelledCount: 0,
+    },
+  );
+
   return sendJson(res, 200, {
     period,
     startDate: start,
     endDate: end,
+    summary,
     stats,
   });
 }
