@@ -72,6 +72,7 @@ const AdminAgendamentos = () => {
   const [dashboardDate, setDashboardDate] = useState(todayDate());
   const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("day");
   const [search, setSearch] = useState("");
+  const [activeBarberTab, setActiveBarberTab] = useState("");
   const [cancelInputs, setCancelInputs] = useState<Record<string, string>>({});
   const [rescheduleInputs, setRescheduleInputs] = useState<Record<string, { barberName: string; reservationDate: string; reservationTime: string; reason: string }>>({});
   const [userDrafts, setUserDrafts] = useState<Record<string, UserDraft>>({});
@@ -199,6 +200,21 @@ const AdminAgendamentos = () => {
       setSiteContentDraft(siteContentQuery.data);
     }
   }, [siteContentDraft, siteContentQuery.data]);
+
+  useEffect(() => {
+    const firstBarber = agendaSummary.byBarber[0]?.barber ?? "";
+
+    if (!firstBarber) {
+      if (activeBarberTab) {
+        setActiveBarberTab("");
+      }
+      return;
+    }
+
+    if (!agendaSummary.byBarber.some(({ barber }) => barber === activeBarberTab)) {
+      setActiveBarberTab(firstBarber);
+    }
+  }, [activeBarberTab, agendaSummary.byBarber]);
 
   const dashboardChartConfig = {
     lucro: {
@@ -393,8 +409,33 @@ const AdminAgendamentos = () => {
                     <div key={label} className="rounded-xl border border-border bg-card p-4"><p className="text-xs uppercase tracking-widest text-muted-foreground">{label}</p><p className="mt-2 font-display text-3xl font-bold">{value}</p></div>
                   ))}
                 </div>
-                <div className="grid gap-6">
-                  {agendaSummary.byBarber.map(({ barber, reservations, pending, completed, cancelled }) => (
+                <div className="space-y-6">
+                  {agendaSummary.byBarber.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {agendaSummary.byBarber.map(({ barber, reservations, pending, completed, cancelled }) => (
+                        <button
+                          key={barber}
+                          onClick={() => setActiveBarberTab(barber)}
+                          className={`rounded-md border px-4 py-3 text-left text-sm transition-colors ${
+                            activeBarberTab === barber
+                              ? "border-primary bg-primary/10 text-foreground"
+                              : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                          }`}
+                        >
+                          <span className="block font-semibold">{barber}</span>
+                          <span className="mt-1 block text-xs uppercase tracking-widest">
+                            {reservations.length} agendamento(s)
+                          </span>
+                          <span className="mt-1 block text-[11px] uppercase tracking-widest opacity-80">
+                            P {pending} • R {completed} • C {cancelled}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {agendaSummary.byBarber
+                    .filter(({ barber }) => barber === activeBarberTab)
+                    .map(({ barber, reservations, pending, completed, cancelled }) => (
                     <section key={barber} className="rounded-xl border border-border bg-card p-5">
                       <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div><h2 className="font-display text-2xl font-bold">{barber}</h2><p className="text-sm text-muted-foreground">{reservations.length} agendamento(s) em {formatReservationDate(agendaDate)}</p></div>
@@ -449,6 +490,11 @@ const AdminAgendamentos = () => {
                       </div>
                     </section>
                   ))}
+                  {agendaSummary.byBarber.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border bg-background/40 p-4 text-sm text-muted-foreground">
+                      Nenhum colaborador ou agendamento encontrado para esta data.
+                    </div>
+                  ) : null}
                 </div>
               </>
             )}
