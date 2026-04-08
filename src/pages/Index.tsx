@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Clock, Facebook, Instagram, MapPin, Phone } from "lucide-react";
+import { Clock, Facebook, Instagram, MapPin, Phone, Scissors } from "lucide-react";
 import { AuthDialog } from "@/components/AuthDialog";
 import logoRamos from "@/assets/logo-ramos.png";
 import heroImage from "@/assets/hero-barbershop.png";
@@ -182,7 +182,7 @@ const Index = () => {
                 className="group bg-background p-6 sm:p-8"
               >
                 <div className="mb-6 flex items-center justify-between">
-                  <service.icon className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
+                  <Scissors className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
                   <span className="font-display text-2xl font-bold">R$ {service.price.toFixed(2).replace(".", ",")}</span>
                 </div>
                 <h3 className="mb-2 font-display text-lg font-semibold tracking-wide">{service.name}</h3>

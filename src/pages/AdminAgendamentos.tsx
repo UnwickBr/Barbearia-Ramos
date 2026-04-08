@@ -316,6 +316,27 @@ const AdminAgendamentos = () => {
     }));
   };
 
+  const handleHeroImageUpload = async (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Arquivo invalido", description: "Escolha uma imagem valida para a capa.", variant: "destructive" });
+      return;
+    }
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Nao foi possivel ler a imagem selecionada."));
+      reader.readAsDataURL(file);
+    });
+
+    updateSiteDraft((draft) => ({ ...draft, heroImageUrl: dataUrl }));
+    toast({ title: "Imagem carregada", description: "A nova capa foi preparada para salvar." });
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-background pb-12 pt-28 sm:pt-20">
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
@@ -587,7 +608,19 @@ const AdminAgendamentos = () => {
                     <input value={getSiteContentDraft()?.heroTitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroTitle: event.target.value }))} placeholder="Titulo principal" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                     <textarea value={getSiteContentDraft()?.heroSubtitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroSubtitle: event.target.value }))} rows={3} placeholder="Subtitulo principal" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                     <input value={getSiteContentDraft()?.heroPrimaryCta ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroPrimaryCta: event.target.value }))} placeholder="Texto do botao principal" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
-                    <input value={getSiteContentDraft()?.heroImageUrl ?? ""} onChange={(event) => updateSiteDraft((draft) => ({ ...draft, heroImageUrl: event.target.value }))} placeholder="URL da imagem principal da home" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    <div className="rounded-lg border border-border bg-background/60 p-4">
+                      <label className="mb-3 block text-sm font-medium text-foreground">Imagem principal da home</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => void handleHeroImageUpload(event.target.files?.[0] ?? null)}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-foreground file:px-4 file:py-2 file:text-sm file:font-semibold file:text-background hover:file:bg-foreground/80"
+                      />
+                      <input value={getSiteContentDraft()?.heroImageUrl ?? ""} onChange={(event) => updateSiteDraft((draft) => ({ ...draft, heroImageUrl: event.target.value }))} placeholder="Ou cole uma URL publica da imagem" className="mt-4 rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      {getSiteContentDraft()?.heroImageUrl ? (
+                        <img src={getSiteContentDraft()?.heroImageUrl} alt="Preview da capa" className="mt-4 h-40 w-full rounded-lg object-cover" />
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
