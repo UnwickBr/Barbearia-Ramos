@@ -166,6 +166,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return sendJson(res, 400, { error: "Barbeiro invalido." });
       }
 
+      if (siteContent.barberDaysOff[barberName]) {
+        return sendJson(res, 400, { error: "Esse barbeiro esta de folga no momento." });
+      }
+
       const allowedTimeSlots = getBarberTimeSlots(siteContent, barberName);
 
       if (!allowedTimeSlots.includes(reservationTime)) {

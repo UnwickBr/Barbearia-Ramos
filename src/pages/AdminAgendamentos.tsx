@@ -48,6 +48,7 @@ type SiteContentDraft = {
   services: SiteEditableService[];
   barbers: string[];
   barberSchedules: Record<string, string[]>;
+  barberDaysOff: Record<string, boolean>;
   contactEyebrow: string;
   contactTitle: string;
   addressLabel: string;
@@ -163,6 +164,7 @@ const AdminAgendamentos = () => {
   const getBarberScheduleOptions = (barberName: string) => siteDraft?.barberSchedules?.[barberName] ?? [];
   const getBarberScheduleDraft = (barberName: string) =>
     barberScheduleDrafts[barberName] ?? (siteDraft?.barberSchedules?.[barberName] ?? []).join(", ");
+  const availableRescheduleBarbers = (siteDraft?.barbers ?? []).filter((barber) => !siteDraft?.barberDaysOff?.[barber]);
 
   const agendaSummary = useMemo(() => {
     const reservations = agendaQuery.data ?? [];
@@ -508,7 +510,7 @@ const AdminAgendamentos = () => {
                                   <div className="space-y-3 rounded-lg border border-border bg-card/70 p-4">
                                     <p className="text-sm font-semibold text-foreground">Remarcar</p>
                                     <div className="grid gap-3 md:grid-cols-3">
-                                      <select value={draft.barberName} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, barberName: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{editableBarbers.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                                      <select value={draft.barberName} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, barberName: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{availableRescheduleBarbers.map((option) => <option key={option} value={option}>{option}</option>)}</select>
                                       <input type="date" value={draft.reservationDate} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationDate: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none" />
                                       <select value={draft.reservationTime} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationTime: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{getBarberScheduleOptions(draft.barberName).map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
                                     </div>
@@ -855,23 +857,43 @@ const AdminAgendamentos = () => {
                                 const nextBarbers = draft.barbers.map((item, itemIndex) => itemIndex === index ? nextName : item);
                                 const currentSchedule = draft.barberSchedules[barber] ?? [];
                                 const nextSchedules = { ...draft.barberSchedules };
+                                const currentDayOff = draft.barberDaysOff[barber] ?? false;
+                                const nextDaysOff = { ...draft.barberDaysOff };
 
                                 if (barber !== nextName) {
                                   delete nextSchedules[barber];
+                                  delete nextDaysOff[barber];
                                 }
 
                                 if (nextName) {
                                   nextSchedules[nextName] = currentSchedule;
+                                  nextDaysOff[nextName] = currentDayOff;
                                 }
 
                                 return {
                                   ...draft,
                                   barbers: nextBarbers,
                                   barberSchedules: nextSchedules,
+                                  barberDaysOff: nextDaysOff,
                                 };
                               });
                             }} className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                           </div>
+                          <label className="inline-flex items-center gap-2 text-sm text-foreground">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(siteDraft.barberDaysOff[barber])}
+                              onChange={(event) => updateSiteDraft((draft) => ({
+                                ...draft,
+                                barberDaysOff: {
+                                  ...draft.barberDaysOff,
+                                  [barber]: event.target.checked,
+                                },
+                              }))}
+                              className="h-4 w-4 rounded border-border"
+                            />
+                            Folga
+                          </label>
                           <button onClick={() => {
                             setBarberScheduleDrafts((current) => {
                               const nextDrafts = { ...current };
@@ -882,8 +904,10 @@ const AdminAgendamentos = () => {
                             updateSiteDraft((draft) => {
                               const nextBarbers = draft.barbers.filter((_, itemIndex) => itemIndex !== index);
                               const nextSchedules = { ...draft.barberSchedules };
+                              const nextDaysOff = { ...draft.barberDaysOff };
                               delete nextSchedules[barber];
-                              return { ...draft, barbers: nextBarbers, barberSchedules: nextSchedules };
+                              delete nextDaysOff[barber];
+                              return { ...draft, barbers: nextBarbers, barberSchedules: nextSchedules, barberDaysOff: nextDaysOff };
                             });
                           }} className="text-sm text-destructive transition-colors hover:text-destructive/80">Remover</button>
                         </div>
@@ -903,6 +927,10 @@ const AdminAgendamentos = () => {
                           barberSchedules: {
                             ...draft.barberSchedules,
                             [newBarberName]: ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30"],
+                          },
+                          barberDaysOff: {
+                            ...draft.barberDaysOff,
+                            [newBarberName]: false,
                           },
                         }));
                       }} className="inline-flex items-center justify-center rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40">Adicionar barbeiro</button>

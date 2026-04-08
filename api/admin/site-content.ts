@@ -1,7 +1,7 @@
 import { ensureSchema, sql } from "../../server/db.js";
 import { parseJsonBody, sendJson } from "../../server/http.js";
 import { getAuthenticatedUser } from "../../server/user.js";
-import { mapSiteContent, type SiteBarberSchedules, type SiteContentRow, type SiteService } from "../../server/site-content.js";
+import { mapSiteContent, type SiteBarberDaysOff, type SiteBarberSchedules, type SiteContentRow, type SiteService } from "../../server/site-content.js";
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
 
 type SiteContentBody = {
@@ -14,6 +14,7 @@ type SiteContentBody = {
   services?: SiteService[];
   barbers?: string[];
   barberSchedules?: SiteBarberSchedules;
+  barberDaysOff?: SiteBarberDaysOff;
   contactEyebrow?: string;
   contactTitle?: string;
   addressLabel?: string;
@@ -64,6 +65,11 @@ const sanitizeBarberSchedules = (barbers: string[], value: SiteBarberSchedules |
     }),
   );
 
+const sanitizeBarberDaysOff = (barbers: string[], value: SiteBarberDaysOff | undefined) =>
+  Object.fromEntries(
+    barbers.map((barber) => [barber, Boolean(value?.[barber])]),
+  );
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
 
@@ -96,6 +102,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       services_json = ${JSON.stringify(sanitizeServices(body.services))}::jsonb,
       barbers_json = ${JSON.stringify(sanitizedBarbers)}::jsonb,
       barber_hours_json = ${JSON.stringify(sanitizeBarberSchedules(sanitizedBarbers, body.barberSchedules))}::jsonb,
+      barber_days_off_json = ${JSON.stringify(sanitizeBarberDaysOff(sanitizedBarbers, body.barberDaysOff))}::jsonb,
       contact_eyebrow = ${trimValue(body.contactEyebrow, "Encontre-nos")},
       contact_title = ${trimValue(body.contactTitle, "Contato")},
       address_label = ${trimValue(body.addressLabel, "Endereco")},
@@ -123,6 +130,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       services_json,
       barbers_json,
       barber_hours_json,
+      barber_days_off_json,
       contact_eyebrow,
       contact_title,
       address_label,

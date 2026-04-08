@@ -38,7 +38,10 @@ const Agendamentos = () => {
   });
   const siteContent = siteContentQuery.data as SiteContent | undefined;
   const availableServices = siteContent?.services ?? [];
-  const availableBarbers = siteContent?.barbers ?? [];
+  const availableBarbers = useMemo(
+    () => (siteContent?.barbers ?? []).filter((barber) => !siteContent?.barberDaysOff?.[barber]),
+    [siteContent],
+  );
   const availableTimeSlots = useMemo(
     () => (selectedBarber ? siteContent?.barberSchedules?.[selectedBarber] ?? [] : []),
     [selectedBarber, siteContent?.barberSchedules],

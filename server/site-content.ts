@@ -15,6 +15,7 @@ type SocialLinksInput = {
 };
 
 type BarberSchedulesInput = Record<string, unknown>;
+type BarberDaysOffInput = Record<string, unknown>;
 
 export type SiteService = {
   id: string;
@@ -30,6 +31,7 @@ export type SiteSocialLinks = {
 };
 
 export type SiteBarberSchedules = Record<string, string[]>;
+export type SiteBarberDaysOff = Record<string, boolean>;
 
 export type SiteContentRow = {
   id: string;
@@ -42,6 +44,7 @@ export type SiteContentRow = {
   services_json: unknown;
   barbers_json: unknown;
   barber_hours_json: unknown;
+  barber_days_off_json: unknown;
   contact_eyebrow: string;
   contact_title: string;
   address_label: string;
@@ -66,6 +69,9 @@ const defaultBarberList = [...defaultBarbers];
 const defaultBarberSchedules = Object.fromEntries(
   defaultBarberList.map((barber) => [barber, [...defaultTimeSlots]]),
 ) as SiteBarberSchedules;
+const defaultBarberDaysOff = Object.fromEntries(
+  defaultBarberList.map((barber) => [barber, false]),
+) as SiteBarberDaysOff;
 
 const defaultSocialLinks: SiteSocialLinks = {
   instagram: "",
@@ -83,6 +89,7 @@ export const defaultSiteContent = {
   services: defaultServiceList,
   barbers: defaultBarberList,
   barberSchedules: defaultBarberSchedules,
+  barberDaysOff: defaultBarberDaysOff,
   contactEyebrow: "Encontre-nos",
   contactTitle: "Contato",
   addressLabel: "Endereco",
@@ -179,6 +186,14 @@ const normalizeBarberSchedules = (barbers: string[], value: unknown): SiteBarber
   return result;
 };
 
+const normalizeBarberDaysOff = (barbers: string[], value: unknown): SiteBarberDaysOff => {
+  const parsed = parseJsonField<BarberDaysOffInput>(value) ?? {};
+
+  return Object.fromEntries(
+    barbers.map((barber) => [barber, Boolean(parsed[barber])]),
+  ) as SiteBarberDaysOff;
+};
+
 const normalizeSocialLinks = (value: unknown): SiteSocialLinks => {
   const parsed = parseJsonField<SocialLinksInput>(value);
 
@@ -202,6 +217,7 @@ export const mapSiteContent = (row?: SiteContentRow | null) => {
   services: normalizeServices(row?.services_json),
   barbers: normalizedBarbers,
   barberSchedules: normalizeBarberSchedules(normalizedBarbers, row?.barber_hours_json),
+  barberDaysOff: normalizeBarberDaysOff(normalizedBarbers, row?.barber_days_off_json),
   contactEyebrow: row?.contact_eyebrow ?? defaultSiteContent.contactEyebrow,
   contactTitle: row?.contact_title ?? defaultSiteContent.contactTitle,
   addressLabel: row?.address_label ?? defaultSiteContent.addressLabel,
@@ -231,6 +247,7 @@ export const getSiteContentRow = async () => {
       services_json,
       barbers_json,
       barber_hours_json,
+      barber_days_off_json,
       contact_eyebrow,
       contact_title,
       address_label,
