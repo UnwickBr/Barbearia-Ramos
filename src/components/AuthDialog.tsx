@@ -85,7 +85,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
         <DialogHeader>
           <DialogTitle className="font-display text-3xl tracking-wide">{mode === "login" ? "Entrar" : "Criar conta"}</DialogTitle>
           <DialogDescription className="font-body">
-            Use Google ou e-mail e senha para acessar a Barbearia Ramos.
+            Use e-mail e senha normalmente. O Google fica opcional para quem preferir entrar por ele ou sincronizar com o calendario.
           </DialogDescription>
         </DialogHeader>
 
@@ -155,6 +155,10 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
           </Button>
 
           <div className="my-4 h-px bg-border" />
+
+          <p className="mb-3 text-xs text-muted-foreground">
+            Vincule o Google somente se quiser entrar com sua conta Google ou receber alertas no Google Calendar.
+          </p>
 
           <Button type="button" variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={!googleReady || startingGoogleLogin}>
             {startingGoogleLogin ? <LoaderCircle className="animate-spin" /> : null}

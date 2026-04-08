@@ -97,6 +97,7 @@ const Agendamentos = () => {
   });
 
   const selectedServiceData = availableServices.find((service) => service.id === selectedService) ?? null;
+  const googleCalendarConnected = Boolean(googleAccessToken && hasGoogleCalendarScopes());
 
   const unavailableTimes = useMemo(() => availabilityQuery.data ?? [], [availabilityQuery.data]);
 
@@ -106,22 +107,30 @@ const Agendamentos = () => {
     }
   }, [selectedTime, unavailableTimes]);
 
-  const ensureGoogleCalendarIntegration = useCallback(async (forceConsent = false) => {
+  const ensureGoogleCalendarIntegration = useCallback(async (forceConsent = false, requestIfNeeded = true) => {
     if (googleAccessToken && hasGoogleCalendarScopes() && !forceConsent) {
       return googleAccessToken;
     }
 
+    if (!requestIfNeeded) {
+      return null;
+    }
+
     toast({
-      title: forceConsent ? "Reconecte o Google" : "Conectando Google",
-      description: "Confirme o acesso ao Google Calendar para sincronizar o agendamento.",
+      title: forceConsent ? "Reconecte o Google" : "Conectar Google Calendar",
+      description: "Confirme o acesso ao Google Calendar para sincronizar seus alertas e compromissos.",
     });
 
     return await connectGoogleCalendar(forceConsent || !googleAccessToken || !hasGoogleCalendarScopes());
   }, [connectGoogleCalendar, googleAccessToken]);
 
-  const ensureGoogleEmailIntegration = useCallback(async (forceConsent = false) => {
+  const ensureGoogleEmailIntegration = useCallback(async (forceConsent = false, requestIfNeeded = true) => {
     if (googleAccessToken && hasGoogleEmailScopes() && !forceConsent) {
       return googleAccessToken;
+    }
+
+    if (!requestIfNeeded) {
+      return null;
     }
 
     return await connectGoogleEmail(forceConsent || !googleAccessToken || !hasGoogleEmailScopes());
@@ -198,17 +207,22 @@ const Agendamentos = () => {
         updatedReservation.reservationTime,
       );
 
-      const emailAccessToken = await ensureGoogleEmailIntegration();
-      await sendGmailMessage({
-        accessToken: emailAccessToken,
-        to: user.email,
-        subject: email.subject,
-        text: email.text,
-      });
+      const emailAccessToken = await ensureGoogleEmailIntegration(false, false);
+      if (emailAccessToken) {
+        await sendGmailMessage({
+          accessToken: emailAccessToken,
+          to: user.email,
+          subject: email.subject,
+          text: email.text,
+        });
+      }
     } catch (error) {
       if (isGoogleAuthError(error)) {
         try {
-          const emailAccessToken = await ensureGoogleEmailIntegration(true);
+          const emailAccessToken = await ensureGoogleEmailIntegration(true, false);
+          if (!emailAccessToken) {
+            return updatedReservation;
+          }
           const email = buildReservationConfirmationEmail(
             updatedReservation.serviceName,
             updatedReservation.barberName,
@@ -252,7 +266,11 @@ const Agendamentos = () => {
       let activeAccessToken: string;
 
       try {
-        activeAccessToken = await ensureGoogleCalendarIntegration();
+        const availableToken = await ensureGoogleCalendarIntegration(false, true);
+        if (!availableToken) {
+          return reservation;
+        }
+        activeAccessToken = availableToken;
       } catch (error) {
         if (!options?.silent) {
           toast({
@@ -341,7 +359,11 @@ const Agendamentos = () => {
           throw error;
         }
 
-        activeAccessToken = await ensureGoogleCalendarIntegration(true);
+        const refreshedToken = await ensureGoogleCalendarIntegration(true, true);
+        if (!refreshedToken) {
+          return reservation;
+        }
+        activeAccessToken = refreshedToken;
         await applySync(activeAccessToken);
       }
 
@@ -374,7 +396,7 @@ const Agendamentos = () => {
   }, [ensureGoogleCalendarIntegration, queryClient, user]);
 
   useEffect(() => {
-    if (!user || !reservationsQuery.data || reservationsQuery.data.length === 0) {
+    if (!user || !googleCalendarConnected || !reservationsQuery.data || reservationsQuery.data.length === 0) {
       return;
     }
 
@@ -408,7 +430,7 @@ const Agendamentos = () => {
         }
       }
     })();
-  }, [reservationsQuery.data, syncReservationEvent, user]);
+  }, [googleCalendarConnected, reservationsQuery.data, syncReservationEvent, user]);
 
   if (loading) {
     return (
@@ -437,23 +459,6 @@ const Agendamentos = () => {
       return;
     }
 
-    let calendarAuthorized = true;
-
-    if (!googleAccessToken || !hasGoogleCalendarScopes()) {
-      try {
-        await ensureGoogleCalendarIntegration(true);
-      } catch (error) {
-        calendarAuthorized = false;
-        toast({
-          title: "Google Calendar pendente",
-          description: error instanceof Error
-            ? `${error.message} O horario ainda sera salvo no sistema.`
-            : "Nao foi possivel autorizar o Google Calendar agora. O horario ainda sera salvo no sistema.",
-          variant: "destructive",
-        });
-      }
-    }
-
     const data = await createReservation.mutateAsync({
       serviceId: selectedService,
       barberName: selectedBarber,
@@ -461,7 +466,7 @@ const Agendamentos = () => {
       reservationTime: selectedTime,
     });
 
-    const syncedReservation = calendarAuthorized
+    const syncedReservation = googleCalendarConnected
       ? await syncReservationWithGoogle(data.reservation)
       : data.reservation;
     setConfirmedReservation(syncedReservation);
@@ -475,7 +480,7 @@ const Agendamentos = () => {
       title: "Reserva confirmada",
       description: syncedReservation.googleCalendarEventId
         ? "Seu horario foi salvo e sincronizado com o Google."
-        : "Seu horario foi salvo no sistema.",
+        : "Seu horario foi salvo no sistema. Vincule o Google para receber alertas no calendario.",
     });
   };
 
@@ -527,24 +532,29 @@ const Agendamentos = () => {
     }
 
     try {
-      const emailAccessToken = await ensureGoogleEmailIntegration();
-      const email = buildReservationCancellationEmail(
-        response.reservation.serviceName,
-        response.reservation.barberName,
-        response.reservation.reservationDate,
-        response.reservation.reservationTime,
-      );
+      const emailAccessToken = await ensureGoogleEmailIntegration(false, false);
+      if (emailAccessToken) {
+        const email = buildReservationCancellationEmail(
+          response.reservation.serviceName,
+          response.reservation.barberName,
+          response.reservation.reservationDate,
+          response.reservation.reservationTime,
+        );
 
-      await sendGmailMessage({
-        accessToken: emailAccessToken,
-        to: user.email,
-        subject: email.subject,
-        text: email.text,
-      });
+        await sendGmailMessage({
+          accessToken: emailAccessToken,
+          to: user.email,
+          subject: email.subject,
+          text: email.text,
+        });
+      }
     } catch (error) {
       if (isGoogleAuthError(error)) {
         try {
-          const emailAccessToken = await ensureGoogleEmailIntegration(true);
+          const emailAccessToken = await ensureGoogleEmailIntegration(true, false);
+          if (!emailAccessToken) {
+            return;
+          }
           const email = buildReservationCancellationEmail(
             response.reservation.serviceName,
             response.reservation.barberName,
@@ -621,6 +631,24 @@ const Agendamentos = () => {
           Agendar <span className="text-primary">Horario</span>
         </h1>
         <p className="mb-10 text-muted-foreground">Escolha o servico, barbeiro, data e horario.</p>
+
+        <div className="mb-8 rounded-xl border border-primary/20 bg-card p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-display text-xl font-bold">Google Calendar opcional</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Para receber alertas no calendario e sincronizar seus compromissos, e necessario vincular a conta do Google.
+              </p>
+            </div>
+            <button
+              onClick={() => void ensureGoogleCalendarIntegration(true, true)}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-3 text-sm text-foreground transition-colors hover:border-primary/40"
+            >
+              <CalendarCheck2 className="h-4 w-4" />
+              {googleCalendarConnected ? "Google Calendar conectado" : "Vincular Google Calendar"}
+            </button>
+          </div>
+        </div>
 
         {confirmedReservation ? (
           <motion.div
@@ -797,7 +825,7 @@ const Agendamentos = () => {
 
         {selectedServiceData ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            O evento vai ocupar {selectedServiceData.duration} com {selectedBarber || "o barbeiro escolhido"}.
+            O evento vai ocupar {selectedServiceData.durationMinutes} min com {selectedBarber || "o barbeiro escolhido"}.
           </p>
         ) : null}
 
