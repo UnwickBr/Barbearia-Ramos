@@ -215,8 +215,8 @@ export const mapSiteContent = (row?: SiteContentRow | null) => {
   };
 };
 
-export const getBarberTimeSlots = (siteContent: ReturnType<typeof mapSiteContent>, barberName: string) =>
-  siteContent.barberSchedules[barberName] ?? defaultTimeSlots;
+export const getBarberTimeSlots = (siteContent: ReturnType<typeof mapSiteContent>, barberName: string): string[] =>
+  siteContent.barberSchedules[barberName] ?? [...defaultTimeSlots];
 
 export const getSiteContentRow = async () => {
   const rows = (await sql`
