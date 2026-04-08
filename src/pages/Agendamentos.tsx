@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Calendar, CalendarCheck2, Check, Clock, LoaderCircle, Scissors, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { barbers, services, timeSlots } from "@/lib/barbershop";
+import { timeSlots } from "@/lib/barbershop";
 import { formatReservationDate } from "@/lib/dates";
 import {
   buildReservationCancellationEmail,
@@ -21,7 +21,8 @@ import {
   updateGoogleCalendarEvent,
 } from "@/lib/google";
 import { reservationsApi } from "@/lib/api";
-import type { Reservation } from "@/lib/types";
+import { siteContentApi } from "@/lib/api";
+import type { Reservation, SiteContent } from "@/lib/types";
 
 const Agendamentos = () => {
   const { user, logout, loading, googleAccessToken, connectGoogleCalendar, connectGoogleEmail } = useAuth();
@@ -32,6 +33,13 @@ const Agendamentos = () => {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmedReservation, setConfirmedReservation] = useState<Reservation | null>(null);
   const [syncingReservationId, setSyncingReservationId] = useState<string | null>(null);
+  const siteContentQuery = useQuery({
+    queryKey: ["site-content"],
+    queryFn: async () => (await siteContentApi.get()).content,
+  });
+  const siteContent = siteContentQuery.data as SiteContent | undefined;
+  const availableServices = siteContent?.services ?? [];
+  const availableBarbers = siteContent?.barbers ?? [];
 
   const getSyncSignature = (reservation: Reservation) =>
     [
@@ -88,10 +96,7 @@ const Agendamentos = () => {
     },
   });
 
-  const selectedServiceData = useMemo(
-    () => services.find((service) => service.id === selectedService) ?? null,
-    [selectedService],
-  );
+  const selectedServiceData = availableServices.find((service) => service.id === selectedService) ?? null;
 
   const unavailableTimes = useMemo(() => availabilityQuery.data ?? [], [availabilityQuery.data]);
 
@@ -671,7 +676,7 @@ const Agendamentos = () => {
             <Scissors className="h-5 w-5 text-primary" /> Servico
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => (
+            {availableServices.map((service) => (
               <button
                 key={service.id}
                 onClick={() => setSelectedService(service.id)}
@@ -683,10 +688,10 @@ const Agendamentos = () => {
               >
                 <div className="flex items-start justify-between">
                   <span className="font-semibold">{service.name}</span>
-                  <span className="font-display font-bold text-primary">{service.price}</span>
+                  <span className="font-display font-bold text-primary">R$ {service.price.toFixed(2).replace(".", ",")}</span>
                 </div>
                 <span className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                  <Clock className="h-3 w-3" /> {service.duration}
+                  <Clock className="h-3 w-3" /> {service.durationMinutes} min
                 </span>
               </button>
             ))}
@@ -698,7 +703,7 @@ const Agendamentos = () => {
             <Scissors className="h-5 w-5 text-primary" /> Barbeiro
           </h3>
           <div className="flex flex-wrap gap-3">
-            {barbers.map((barber) => (
+            {availableBarbers.map((barber) => (
               <button
                 key={barber}
                 onClick={() => setSelectedBarber(barber)}

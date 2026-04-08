@@ -1,6 +1,6 @@
-import { barbers } from "../../server/barbershop.js";
 import { ensureSchema, sql } from "../../server/db.js";
 import { sendJson } from "../../server/http.js";
+import { getSiteContentRow, mapSiteContent } from "../../server/site-content.js";
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
 import { getAuthenticatedUser } from "../../server/user.js";
 
@@ -24,6 +24,7 @@ const formatDate = (date: Date) => date.toISOString().slice(0, 10);
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
+  const siteContent = mapSiteContent(await getSiteContentRow());
 
   const user = await getAuthenticatedUser(req);
 
@@ -77,7 +78,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const byBarber = Object.fromEntries(rows.map((row) => [row.barber_name, row]));
 
-  const stats = barbers.map((barber) => {
+  const stats = siteContent.barbers.map((barber) => {
     const row = byBarber[barber];
     return {
       barberName: barber,

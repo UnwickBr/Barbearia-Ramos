@@ -119,8 +119,11 @@ export const ensureSchema = async () => {
           hero_title TEXT NOT NULL DEFAULT 'Barbearia Ramos',
           hero_subtitle TEXT NOT NULL DEFAULT 'Estilo na rua. Tradicao no corte.',
           hero_primary_cta TEXT NOT NULL DEFAULT 'Agendar horario',
+          hero_image_url TEXT,
           services_eyebrow TEXT NOT NULL DEFAULT 'O que fazemos',
           services_title TEXT NOT NULL DEFAULT 'Servicos',
+          services_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+          barbers_json JSONB NOT NULL DEFAULT '[]'::jsonb,
           contact_eyebrow TEXT NOT NULL DEFAULT 'Encontre-nos',
           contact_title TEXT NOT NULL DEFAULT 'Contato',
           address_label TEXT NOT NULL DEFAULT 'Endereco',
@@ -129,6 +132,7 @@ export const ensureSchema = async () => {
           phone_text TEXT NOT NULL DEFAULT '(11) 99999-9999',
           hours_label TEXT NOT NULL DEFAULT 'Horario',
           hours_text TEXT NOT NULL DEFAULT 'Seg-Sab: 9h - 20h',
+          social_links_json JSONB NOT NULL DEFAULT '{}'::jsonb,
           footer_text TEXT NOT NULL DEFAULT '2026 Barbearia Ramos. Todos os direitos reservados.',
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
@@ -136,8 +140,11 @@ export const ensureSchema = async () => {
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hero_title TEXT NOT NULL DEFAULT 'Barbearia Ramos'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hero_subtitle TEXT NOT NULL DEFAULT 'Estilo na rua. Tradicao no corte.'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hero_primary_cta TEXT NOT NULL DEFAULT 'Agendar horario'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hero_image_url TEXT`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS services_eyebrow TEXT NOT NULL DEFAULT 'O que fazemos'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS services_title TEXT NOT NULL DEFAULT 'Servicos'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS services_json JSONB NOT NULL DEFAULT '[]'::jsonb`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS barbers_json JSONB NOT NULL DEFAULT '[]'::jsonb`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS contact_eyebrow TEXT NOT NULL DEFAULT 'Encontre-nos'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS contact_title TEXT NOT NULL DEFAULT 'Contato'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS address_label TEXT NOT NULL DEFAULT 'Endereco'`;
@@ -146,12 +153,36 @@ export const ensureSchema = async () => {
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS phone_text TEXT NOT NULL DEFAULT '(11) 99999-9999'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hours_label TEXT NOT NULL DEFAULT 'Horario'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS hours_text TEXT NOT NULL DEFAULT 'Seg-Sab: 9h - 20h'`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS social_links_json JSONB NOT NULL DEFAULT '{}'::jsonb`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS footer_text TEXT NOT NULL DEFAULT '2026 Barbearia Ramos. Todos os direitos reservados.'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
       await sql`
         INSERT INTO site_content (id)
         VALUES ('main')
         ON CONFLICT (id) DO NOTHING
+      `;
+      await sql`
+        UPDATE site_content
+        SET
+          services_json = CASE
+            WHEN jsonb_array_length(COALESCE(services_json, '[]'::jsonb)) = 0
+              THEN ${JSON.stringify([
+                { id: "corte", name: "Corte Classico", price: 45, durationMinutes: 30 },
+                { id: "barba", name: "Barba Completa", price: 35, durationMinutes: 25 },
+                { id: "combo", name: "Corte + Barba", price: 70, durationMinutes: 50 },
+                { id: "pigmentacao", name: "Pigmentacao", price: 60, durationMinutes: 40 },
+                { id: "sobrancelha", name: "Sobrancelha", price: 20, durationMinutes: 15 },
+                { id: "hidratacao", name: "Hidratacao Capilar", price: 50, durationMinutes: 30 }
+              ])}::jsonb
+            ELSE services_json
+          END,
+          barbers_json = CASE
+            WHEN jsonb_array_length(COALESCE(barbers_json, '[]'::jsonb)) = 0
+              THEN ${JSON.stringify(["Carlos", "Rafael", "Andre", "Lucas"])}::jsonb
+            ELSE barbers_json
+          END,
+          social_links_json = COALESCE(social_links_json, '{}'::jsonb)
+        WHERE id = 'main'
       `;
     })();
   }

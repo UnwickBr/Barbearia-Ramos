@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { barbers, servicesById, timeSlots } from "../../server/barbershop.js";
+import { timeSlots } from "../../server/barbershop.js";
 import { ensureSchema, sql } from "../../server/db.js";
 import { parseJsonBody, sendJson } from "../../server/http.js";
 import { mapReservation, type ReservationRow } from "../../server/reservations.js";
+import { getSiteContentRow, mapSiteContent } from "../../server/site-content.js";
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
 import { getAuthenticatedUser } from "../../server/user.js";
 
@@ -27,6 +28,8 @@ const findCollaboratorIdByBarberName = async (barberName: string) => {
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
+  const siteContent = mapSiteContent(await getSiteContentRow());
+  const servicesById = Object.fromEntries(siteContent.services.map((service) => [service.id, service]));
 
   if (req.method === "GET") {
     const barberName = Array.isArray(req.query?.barberName) ? req.query?.barberName[0]?.trim() : req.query?.barberName?.trim();
@@ -35,7 +38,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       : req.query?.reservationDate?.trim();
 
     if (barberName && reservationDate) {
-      if (!barbers.includes(barberName as (typeof barbers)[number])) {
+      if (!siteContent.barbers.includes(barberName)) {
         return sendJson(res, 400, { error: "Barbeiro invalido." });
       }
 
@@ -111,7 +114,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return sendJson(res, 400, { error: "Servico invalido." });
     }
 
-    if (!barbers.includes(barberName as (typeof barbers)[number])) {
+    if (!siteContent.barbers.includes(barberName)) {
       return sendJson(res, 400, { error: "Barbeiro invalido." });
     }
 
@@ -153,7 +156,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           ${service.id},
           ${service.name},
           ${service.price},
-          ${service.duration},
+          ${service.durationMinutes},
           ${barberUserId},
           ${barberName},
           ${reservationDate},

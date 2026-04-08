@@ -63,8 +63,11 @@ export interface SiteContent {
   heroTitle: string;
   heroSubtitle: string;
   heroPrimaryCta: string;
+  heroImageUrl: string;
   servicesEyebrow: string;
   servicesTitle: string;
+  services: SiteEditableService[];
+  barbers: string[];
   contactEyebrow: string;
   contactTitle: string;
   addressLabel: string;
@@ -73,5 +76,19 @@ export interface SiteContent {
   phoneText: string;
   hoursLabel: string;
   hoursText: string;
+  socialLinks: SiteSocialLinks;
   footerText: string;
+}
+
+export interface SiteEditableService {
+  id: string;
+  name: string;
+  price: number;
+  durationMinutes: number;
+}
+
+export interface SiteSocialLinks {
+  instagram: string;
+  facebook: string;
+  whatsapp: string;
 }

@@ -6,11 +6,11 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { adminApi, reservationsApi } from "@/lib/api";
-import { barbers, timeSlots } from "@/lib/barbershop";
+import { timeSlots } from "@/lib/barbershop";
 import { formatReservationDate } from "@/lib/dates";
 import { buildAdminCancellationEmail, buildAdminRescheduleEmail, hasGoogleEmailScopes, isGoogleAuthError, sendGmailMessage } from "@/lib/google";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import type { Reservation, User } from "@/lib/types";
+import type { Reservation, SiteEditableService, User } from "@/lib/types";
 
 type AdminView = "agenda" | "users" | "dashboard" | "site";
 type DashboardPeriod = "day" | "week" | "month";
@@ -43,8 +43,11 @@ type SiteContentDraft = {
   heroTitle: string;
   heroSubtitle: string;
   heroPrimaryCta: string;
+  heroImageUrl: string;
   servicesEyebrow: string;
   servicesTitle: string;
+  services: SiteEditableService[];
+  barbers: string[];
   contactEyebrow: string;
   contactTitle: string;
   addressLabel: string;
@@ -53,6 +56,11 @@ type SiteContentDraft = {
   phoneText: string;
   hoursLabel: string;
   hoursText: string;
+  socialLinks: {
+    instagram: string;
+    facebook: string;
+    whatsapp: string;
+  };
   footerText: string;
 };
 
@@ -99,6 +107,7 @@ const AdminAgendamentos = () => {
     queryFn: async () => (await adminApi.siteContent()).content,
     enabled: Boolean(user?.isAdmin),
   });
+  const editableBarbers = useMemo(() => siteContentQuery.data?.barbers ?? [], [siteContentQuery.data?.barbers]);
 
   const cancelMutation = useMutation({
     mutationFn: ({ reservationId, reason }: { reservationId: string; reason: string }) =>
@@ -151,7 +160,10 @@ const AdminAgendamentos = () => {
 
   const agendaSummary = useMemo(() => {
     const reservations = agendaQuery.data ?? [];
-    const byBarber = barbers.map((barber) => {
+    const sourceBarbers = editableBarbers.length > 0
+      ? editableBarbers
+      : Array.from(new Set(reservations.map((reservation) => reservation.barberName)));
+    const byBarber = sourceBarbers.map((barber) => {
       const items = reservations.filter((reservation) => reservation.barberName === barber);
       return {
         barber,
@@ -168,7 +180,7 @@ const AdminAgendamentos = () => {
       completed: reservations.filter((reservation) => reservation.status === "completed").length,
       cancelled: reservations.filter((reservation) => reservation.status === "cancelled").length,
     };
-  }, [agendaQuery.data]);
+  }, [agendaQuery.data, editableBarbers]);
 
   const dashboardChartData = useMemo(
     () =>
@@ -283,6 +295,27 @@ const AdminAgendamentos = () => {
     toast({ title: "Conteudo atualizado", description: "As informacoes do site foram salvas." });
   };
 
+  const updateSiteDraft = (updater: (draft: SiteContentDraft) => SiteContentDraft) => {
+    setSiteContentDraft((current) => {
+      const base = current ?? siteContentQuery.data;
+
+      if (!base) {
+        return current;
+      }
+
+      return updater(base);
+    });
+  };
+
+  const updateServiceDraft = (index: number, patch: Partial<SiteEditableService>) => {
+    updateSiteDraft((draft) => ({
+      ...draft,
+      services: draft.services.map((service, serviceIndex) =>
+        serviceIndex === index ? { ...service, ...patch } : service,
+      ),
+    }));
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-background pb-12 pt-28 sm:pt-20">
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
@@ -373,7 +406,7 @@ const AdminAgendamentos = () => {
                                   <div className="space-y-3 rounded-lg border border-border bg-card/70 p-4">
                                     <p className="text-sm font-semibold text-foreground">Remarcar</p>
                                     <div className="grid gap-3 md:grid-cols-3">
-                                      <select value={draft.barberName} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, barberName: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{barbers.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+                                      <select value={draft.barberName} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, barberName: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{editableBarbers.map((option) => <option key={option} value={option}>{option}</option>)}</select>
                                       <input type="date" value={draft.reservationDate} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationDate: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none" />
                                       <select value={draft.reservationTime} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationTime: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{timeSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
                                     </div>
@@ -421,7 +454,7 @@ const AdminAgendamentos = () => {
                           <option value="customer">Cliente</option><option value="collaborator">Colaborador</option><option value="admin">Admin</option>
                         </select>
                         <select value={draft.barberName} onChange={(event) => setUserDrafts((current) => ({ ...current, [account.id]: { ...draft, barberName: event.target.value } }))} disabled={draft.role !== "collaborator"} className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none disabled:opacity-50">
-                          <option value="">Selecione o barbeiro</option>{barbers.map((barber) => <option key={barber} value={barber}>{barber}</option>)}
+                          <option value="">Selecione o barbeiro</option>{editableBarbers.map((barber) => <option key={barber} value={barber}>{barber}</option>)}
                         </select>
                         <input value={draft.phone} onChange={(event) => setUserDrafts((current) => ({ ...current, [account.id]: { ...draft, phone: event.target.value } }))} placeholder="Telefone" className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                         <input value={draft.photoUrl} onChange={(event) => setUserDrafts((current) => ({ ...current, [account.id]: { ...draft, photoUrl: event.target.value } }))} placeholder="URL da foto do perfil" className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
@@ -554,6 +587,7 @@ const AdminAgendamentos = () => {
                     <input value={getSiteContentDraft()?.heroTitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroTitle: event.target.value }))} placeholder="Titulo principal" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                     <textarea value={getSiteContentDraft()?.heroSubtitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroSubtitle: event.target.value }))} rows={3} placeholder="Subtitulo principal" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                     <input value={getSiteContentDraft()?.heroPrimaryCta ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), heroPrimaryCta: event.target.value }))} placeholder="Texto do botao principal" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    <input value={getSiteContentDraft()?.heroImageUrl ?? ""} onChange={(event) => updateSiteDraft((draft) => ({ ...draft, heroImageUrl: event.target.value }))} placeholder="URL da imagem principal da home" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                   </div>
                 </div>
 
@@ -562,6 +596,20 @@ const AdminAgendamentos = () => {
                   <div className="grid gap-4">
                     <input value={getSiteContentDraft()?.servicesEyebrow ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), servicesEyebrow: event.target.value }))} placeholder="Linha de apoio da secao" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                     <input value={getSiteContentDraft()?.servicesTitle ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), servicesTitle: event.target.value }))} placeholder="Titulo da secao de servicos" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                    <div className="grid gap-3">
+                      {(getSiteContentDraft()?.services ?? []).map((service, index) => (
+                        <div key={`${service.id}-${index}`} className="rounded-lg border border-border bg-background/60 p-4">
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <input value={service.name} onChange={(event) => updateServiceDraft(index, { name: event.target.value })} placeholder="Nome do servico" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                            <input value={service.id} onChange={(event) => updateServiceDraft(index, { id: event.target.value })} placeholder="ID interno do servico" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                            <input type="number" min="0" step="0.01" value={service.price} onChange={(event) => updateServiceDraft(index, { price: Number(event.target.value) })} placeholder="Preco" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                            <input type="number" min="5" step="5" value={service.durationMinutes} onChange={(event) => updateServiceDraft(index, { durationMinutes: Number(event.target.value) })} placeholder="Duracao em minutos" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                          </div>
+                          <button onClick={() => updateSiteDraft((draft) => ({ ...draft, services: draft.services.filter((_, itemIndex) => itemIndex !== index) }))} className="mt-3 text-sm text-destructive transition-colors hover:text-destructive/80">Remover servico</button>
+                        </div>
+                      ))}
+                      <button onClick={() => updateSiteDraft((draft) => ({ ...draft, services: [...draft.services, { id: `servico-${draft.services.length + 1}`, name: "", price: 0, durationMinutes: 30 }] }))} className="inline-flex items-center justify-center rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40">Adicionar servico</button>
+                    </div>
                   </div>
                 </div>
 
@@ -577,13 +625,25 @@ const AdminAgendamentos = () => {
                       <input value={getSiteContentDraft()?.phoneText ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), phoneText: event.target.value }))} placeholder="Telefone" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                       <input value={getSiteContentDraft()?.hoursLabel ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), hoursLabel: event.target.value }))} placeholder="Rotulo do horario" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                       <input value={getSiteContentDraft()?.hoursText ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), hoursText: event.target.value }))} placeholder="Horario de funcionamento" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      <input value={getSiteContentDraft()?.socialLinks.instagram ?? ""} onChange={(event) => updateSiteDraft((draft) => ({ ...draft, socialLinks: { ...draft.socialLinks, instagram: event.target.value } }))} placeholder="Link do Instagram" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      <input value={getSiteContentDraft()?.socialLinks.facebook ?? ""} onChange={(event) => updateSiteDraft((draft) => ({ ...draft, socialLinks: { ...draft.socialLinks, facebook: event.target.value } }))} placeholder="Link do Facebook" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                      <input value={getSiteContentDraft()?.socialLinks.whatsapp ?? ""} onChange={(event) => updateSiteDraft((draft) => ({ ...draft, socialLinks: { ...draft.socialLinks, whatsapp: event.target.value } }))} placeholder="Link do WhatsApp" className="rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none md:col-span-2" />
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-border bg-card p-5">
-                  <h3 className="mb-4 font-display text-2xl font-bold">Rodape</h3>
+                  <h3 className="mb-4 font-display text-2xl font-bold">Barbeiros e rodape</h3>
                   <div className="grid gap-4">
+                    <div className="grid gap-3">
+                      {(getSiteContentDraft()?.barbers ?? []).map((barber, index) => (
+                        <div key={`${barber}-${index}`} className="flex flex-col gap-3 rounded-lg border border-border bg-background/60 p-4 sm:flex-row">
+                          <input value={barber} onChange={(event) => updateSiteDraft((draft) => ({ ...draft, barbers: draft.barbers.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))} placeholder="Nome do barbeiro" className="flex-1 rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                          <button onClick={() => updateSiteDraft((draft) => ({ ...draft, barbers: draft.barbers.filter((_, itemIndex) => itemIndex !== index) }))} className="text-sm text-destructive transition-colors hover:text-destructive/80">Remover</button>
+                        </div>
+                      ))}
+                      <button onClick={() => updateSiteDraft((draft) => ({ ...draft, barbers: [...draft.barbers, ""] }))} className="inline-flex items-center justify-center rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40">Adicionar barbeiro</button>
+                    </div>
                     <textarea value={getSiteContentDraft()?.footerText ?? ""} onChange={(event) => setSiteContentDraft((current) => ({ ...(current ?? siteContentQuery.data!), footerText: event.target.value }))} rows={4} placeholder="Texto do rodape" className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                   </div>
                 </div>

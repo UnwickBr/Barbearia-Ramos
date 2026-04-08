@@ -1,6 +1,6 @@
-import { barbers } from "../../../server/barbershop.js";
 import { ensureSchema, sql } from "../../../server/db.js";
 import { parseJsonBody, sendJson } from "../../../server/http.js";
+import { getSiteContentRow, mapSiteContent } from "../../../server/site-content.js";
 import type { ApiRequest, ApiResponse } from "../../../server/types.js";
 import { getAuthenticatedUser } from "../../../server/user.js";
 
@@ -42,6 +42,7 @@ const mapAdminUser = (user: UserRow) => ({
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
+  const siteContent = mapSiteContent(await getSiteContentRow());
 
   const currentUser = await getAuthenticatedUser(req);
 
@@ -86,7 +87,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendJson(res, 400, { error: "Perfil invalido." });
   }
 
-  if (role === "collaborator" && (!barberName || !barbers.includes(barberName as (typeof barbers)[number]))) {
+  if (role === "collaborator" && (!barberName || !siteContent.barbers.includes(barberName))) {
     return sendJson(res, 400, { error: "Selecione um barbeiro valido para o colaborador." });
   }
 

@@ -1,15 +1,18 @@
 import { ensureSchema, sql } from "../../server/db.js";
 import { parseJsonBody, sendJson } from "../../server/http.js";
 import { getAuthenticatedUser } from "../../server/user.js";
-import { mapSiteContent, type SiteContentRow } from "../../server/site-content.js";
+import { mapSiteContent, type SiteContentRow, type SiteService } from "../../server/site-content.js";
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
 
 type SiteContentBody = {
   heroTitle?: string;
   heroSubtitle?: string;
   heroPrimaryCta?: string;
+  heroImageUrl?: string;
   servicesEyebrow?: string;
   servicesTitle?: string;
+  services?: SiteService[];
+  barbers?: string[];
   contactEyebrow?: string;
   contactTitle?: string;
   addressLabel?: string;
@@ -18,6 +21,11 @@ type SiteContentBody = {
   phoneText?: string;
   hoursLabel?: string;
   hoursText?: string;
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    whatsapp?: string;
+  };
   footerText?: string;
 };
 
@@ -25,6 +33,22 @@ const trimValue = (value: string | undefined, fallback: string) => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : fallback;
 };
+
+const sanitizeServices = (value: SiteService[] | undefined) => {
+  const normalized = (value ?? [])
+    .map((service, index) => ({
+      id: String(service.id || `service-${index + 1}`).trim(),
+      name: String(service.name || "").trim(),
+      price: Number(service.price),
+      durationMinutes: Number(service.durationMinutes),
+    }))
+    .filter((service) => service.id && service.name && Number.isFinite(service.price) && service.price >= 0 && Number.isFinite(service.durationMinutes) && service.durationMinutes > 0);
+
+  return normalized;
+};
+
+const sanitizeBarbers = (value: string[] | undefined) =>
+  (value ?? []).map((barber) => barber.trim()).filter(Boolean);
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
@@ -51,8 +75,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       hero_title = ${trimValue(body.heroTitle, "Barbearia Ramos")},
       hero_subtitle = ${trimValue(body.heroSubtitle, "Estilo na rua. Tradicao no corte.")},
       hero_primary_cta = ${trimValue(body.heroPrimaryCta, "Agendar horario")},
+      hero_image_url = ${body.heroImageUrl?.trim() || null},
       services_eyebrow = ${trimValue(body.servicesEyebrow, "O que fazemos")},
       services_title = ${trimValue(body.servicesTitle, "Servicos")},
+      services_json = ${JSON.stringify(sanitizeServices(body.services))}::jsonb,
+      barbers_json = ${JSON.stringify(sanitizeBarbers(body.barbers))}::jsonb,
       contact_eyebrow = ${trimValue(body.contactEyebrow, "Encontre-nos")},
       contact_title = ${trimValue(body.contactTitle, "Contato")},
       address_label = ${trimValue(body.addressLabel, "Endereco")},
@@ -61,6 +88,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       phone_text = ${trimValue(body.phoneText, "(11) 99999-9999")},
       hours_label = ${trimValue(body.hoursLabel, "Horario")},
       hours_text = ${trimValue(body.hoursText, "Seg-Sab: 9h - 20h")},
+      social_links_json = ${JSON.stringify({
+        instagram: body.socialLinks?.instagram?.trim() || "",
+        facebook: body.socialLinks?.facebook?.trim() || "",
+        whatsapp: body.socialLinks?.whatsapp?.trim() || "",
+      })}::jsonb,
       footer_text = ${trimValue(body.footerText, "2026 Barbearia Ramos. Todos os direitos reservados.")},
       updated_at = NOW()
     WHERE id = 'main'
@@ -69,8 +101,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       hero_title,
       hero_subtitle,
       hero_primary_cta,
+      hero_image_url,
       services_eyebrow,
       services_title,
+      services_json,
+      barbers_json,
       contact_eyebrow,
       contact_title,
       address_label,
@@ -79,6 +114,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       phone_text,
       hours_label,
       hours_text,
+      social_links_json,
       footer_text,
       updated_at
   `) as SiteContentRow[];

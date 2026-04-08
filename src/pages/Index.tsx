@@ -2,21 +2,27 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Clock, MapPin, Phone } from "lucide-react";
+import { Clock, Facebook, Instagram, MapPin, Phone } from "lucide-react";
 import { AuthDialog } from "@/components/AuthDialog";
 import logoRamos from "@/assets/logo-ramos.png";
 import heroImage from "@/assets/hero-barbershop.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { siteContentApi } from "@/lib/api";
-import { services } from "@/lib/barbershop";
 import type { SiteContent } from "@/lib/types";
 
 const defaultContent: SiteContent = {
   heroTitle: "Barbearia Ramos",
   heroSubtitle: "Estilo na rua. Tradicao no corte.",
   heroPrimaryCta: "Agendar horario",
+  heroImageUrl: "",
   servicesEyebrow: "O que fazemos",
   servicesTitle: "Servicos",
+  services: [
+    { id: "corte", name: "Corte Classico", price: 45, durationMinutes: 30 },
+    { id: "barba", name: "Barba Completa", price: 35, durationMinutes: 25 },
+    { id: "combo", name: "Corte + Barba", price: 70, durationMinutes: 50 },
+  ],
+  barbers: ["Carlos", "Rafael", "Andre", "Lucas"],
   contactEyebrow: "Encontre-nos",
   contactTitle: "Contato",
   addressLabel: "Endereco",
@@ -25,6 +31,11 @@ const defaultContent: SiteContent = {
   phoneText: "(11) 99999-9999",
   hoursLabel: "Horario",
   hoursText: "Seg-Sab: 9h - 20h",
+  socialLinks: {
+    instagram: "",
+    facebook: "",
+    whatsapp: "",
+  },
   footerText: "2026 Barbearia Ramos. Todos os direitos reservados.",
 };
 
@@ -110,7 +121,7 @@ const Index = () => {
       <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 pb-16 pt-36 sm:px-0 sm:pb-0 sm:pt-24">
         <div className="absolute inset-0">
           <img
-            src={heroImage}
+            src={content.heroImageUrl || heroImage}
             alt="Interior da Barbearia Ramos"
             className="h-full w-full object-cover grayscale brightness-[0.35] contrast-125"
             width={1920}
@@ -161,7 +172,7 @@ const Index = () => {
           </motion.div>
 
           <div className="grid grid-cols-1 gap-[1px] bg-border md:grid-cols-2 lg:grid-cols-3">
-            {services.map((service, index) => (
+            {content.services.map((service, index) => (
               <motion.div
                 key={service.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -172,12 +183,12 @@ const Index = () => {
               >
                 <div className="mb-6 flex items-center justify-between">
                   <service.icon className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
-                  <span className="font-display text-2xl font-bold">{service.price}</span>
+                  <span className="font-display text-2xl font-bold">R$ {service.price.toFixed(2).replace(".", ",")}</span>
                 </div>
                 <h3 className="mb-2 font-display text-lg font-semibold tracking-wide">{service.name}</h3>
                 <div className="flex items-center gap-1 font-body text-xs uppercase tracking-widest text-muted-foreground">
                   <Clock className="h-3 w-3" />
-                  {service.duration}
+                  {service.durationMinutes} min
                 </div>
               </motion.div>
             ))}
@@ -216,6 +227,26 @@ const Index = () => {
               </div>
             </div>
           </div>
+
+          {content.socialLinks.instagram || content.socialLinks.facebook || content.socialLinks.whatsapp ? (
+            <div className="mt-10 flex flex-wrap gap-3">
+              {content.socialLinks.instagram ? (
+                <a href={content.socialLinks.instagram} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                  <Instagram className="h-4 w-4" /> Instagram
+                </a>
+              ) : null}
+              {content.socialLinks.facebook ? (
+                <a href={content.socialLinks.facebook} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                  <Facebook className="h-4 w-4" /> Facebook
+                </a>
+              ) : null}
+              {content.socialLinks.whatsapp ? (
+                <a href={content.socialLinks.whatsapp} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                  <Phone className="h-4 w-4" /> WhatsApp
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 

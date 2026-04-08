@@ -2,7 +2,8 @@ import { ensureSchema, sql } from "../../server/db.js";
 import { parseJsonBody, sendJson } from "../../server/http.js";
 import { mapReservation, type ReservationRow } from "../../server/reservations.js";
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
-import { barbers, timeSlots } from "../../server/barbershop.js";
+import { timeSlots } from "../../server/barbershop.js";
+import { getSiteContentRow, mapSiteContent } from "../../server/site-content.js";
 import { getAuthenticatedUser } from "../../server/user.js";
 
 type ReservationPatchBody = {
@@ -61,6 +62,7 @@ const getReservation = async (reservationId: string, userId: string, isAdmin: bo
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
+  const siteContent = mapSiteContent(await getSiteContentRow());
 
   const user = await getAuthenticatedUser(req);
 
@@ -161,7 +163,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return sendJson(res, 400, { error: "Informe barbeiro, data, horario e justificativa para remarcar." });
       }
 
-      if (!barbers.includes(barberName as (typeof barbers)[number])) {
+      if (!siteContent.barbers.includes(barberName)) {
         return sendJson(res, 400, { error: "Barbeiro invalido." });
       }
 
