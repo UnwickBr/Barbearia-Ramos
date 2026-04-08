@@ -1,5 +1,5 @@
 import { sql } from "./db.js";
-import { barbers as defaultBarbers, services as defaultServices } from "./barbershop.js";
+import { barbers as defaultBarbers, services as defaultServices, timeSlots as defaultTimeSlots } from "./barbershop.js";
 
 type ServiceInput = {
   id?: unknown;
@@ -14,6 +14,8 @@ type SocialLinksInput = {
   whatsapp?: unknown;
 };
 
+type BarberSchedulesInput = Record<string, unknown>;
+
 export type SiteService = {
   id: string;
   name: string;
@@ -27,6 +29,8 @@ export type SiteSocialLinks = {
   whatsapp: string;
 };
 
+export type SiteBarberSchedules = Record<string, string[]>;
+
 export type SiteContentRow = {
   id: string;
   hero_title: string;
@@ -37,6 +41,7 @@ export type SiteContentRow = {
   services_title: string;
   services_json: unknown;
   barbers_json: unknown;
+  barber_hours_json: unknown;
   contact_eyebrow: string;
   contact_title: string;
   address_label: string;
@@ -58,6 +63,9 @@ const defaultServiceList: SiteService[] = defaultServices.map((service) => ({
 }));
 
 const defaultBarberList = [...defaultBarbers];
+const defaultBarberSchedules = Object.fromEntries(
+  defaultBarberList.map((barber) => [barber, [...defaultTimeSlots]]),
+) as SiteBarberSchedules;
 
 const defaultSocialLinks: SiteSocialLinks = {
   instagram: "",
@@ -74,6 +82,7 @@ export const defaultSiteContent = {
   servicesTitle: "Servicos",
   services: defaultServiceList,
   barbers: defaultBarberList,
+  barberSchedules: defaultBarberSchedules,
   contactEyebrow: "Encontre-nos",
   contactTitle: "Contato",
   addressLabel: "Endereco",
@@ -146,6 +155,30 @@ const normalizeBarbers = (value: unknown): string[] => {
   return normalized.length > 0 ? normalized : defaultBarberList;
 };
 
+const normalizeTimeSlotList = (value: unknown) => {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const normalized = value
+    .map((slot) => (typeof slot === "string" ? slot.trim() : ""))
+    .filter((slot) => /^\d{2}:\d{2}$/.test(slot));
+
+  return normalized.length > 0 ? normalized : null;
+};
+
+const normalizeBarberSchedules = (barbers: string[], value: unknown): SiteBarberSchedules => {
+  const parsed = parseJsonField<BarberSchedulesInput>(value) ?? {};
+  const result = Object.fromEntries(
+    barbers.map((barber) => {
+      const customSlots = normalizeTimeSlotList(parsed[barber]);
+      return [barber, customSlots ?? [...defaultTimeSlots]];
+    }),
+  ) as SiteBarberSchedules;
+
+  return result;
+};
+
 const normalizeSocialLinks = (value: unknown): SiteSocialLinks => {
   const parsed = parseJsonField<SocialLinksInput>(value);
 
@@ -156,7 +189,10 @@ const normalizeSocialLinks = (value: unknown): SiteSocialLinks => {
   };
 };
 
-export const mapSiteContent = (row?: SiteContentRow | null) => ({
+export const mapSiteContent = (row?: SiteContentRow | null) => {
+  const normalizedBarbers = normalizeBarbers(row?.barbers_json);
+
+  return {
   heroTitle: row?.hero_title ?? defaultSiteContent.heroTitle,
   heroSubtitle: row?.hero_subtitle ?? defaultSiteContent.heroSubtitle,
   heroPrimaryCta: row?.hero_primary_cta ?? defaultSiteContent.heroPrimaryCta,
@@ -164,7 +200,8 @@ export const mapSiteContent = (row?: SiteContentRow | null) => ({
   servicesEyebrow: row?.services_eyebrow ?? defaultSiteContent.servicesEyebrow,
   servicesTitle: row?.services_title ?? defaultSiteContent.servicesTitle,
   services: normalizeServices(row?.services_json),
-  barbers: normalizeBarbers(row?.barbers_json),
+  barbers: normalizedBarbers,
+  barberSchedules: normalizeBarberSchedules(normalizedBarbers, row?.barber_hours_json),
   contactEyebrow: row?.contact_eyebrow ?? defaultSiteContent.contactEyebrow,
   contactTitle: row?.contact_title ?? defaultSiteContent.contactTitle,
   addressLabel: row?.address_label ?? defaultSiteContent.addressLabel,
@@ -175,7 +212,11 @@ export const mapSiteContent = (row?: SiteContentRow | null) => ({
   hoursText: row?.hours_text ?? defaultSiteContent.hoursText,
   socialLinks: normalizeSocialLinks(row?.social_links_json),
   footerText: row?.footer_text ?? defaultSiteContent.footerText,
-});
+  };
+};
+
+export const getBarberTimeSlots = (siteContent: ReturnType<typeof mapSiteContent>, barberName: string) =>
+  siteContent.barberSchedules[barberName] ?? defaultTimeSlots;
 
 export const getSiteContentRow = async () => {
   const rows = (await sql`
@@ -189,6 +230,7 @@ export const getSiteContentRow = async () => {
       services_title,
       services_json,
       barbers_json,
+      barber_hours_json,
       contact_eyebrow,
       contact_title,
       address_label,

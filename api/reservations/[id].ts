@@ -2,8 +2,7 @@ import { ensureSchema, sql } from "../../server/db.js";
 import { parseJsonBody, sendJson } from "../../server/http.js";
 import { mapReservation, type ReservationRow } from "../../server/reservations.js";
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
-import { timeSlots } from "../../server/barbershop.js";
-import { getSiteContentRow, mapSiteContent } from "../../server/site-content.js";
+import { getBarberTimeSlots, getSiteContentRow, mapSiteContent } from "../../server/site-content.js";
 import { getAuthenticatedUser } from "../../server/user.js";
 
 type ReservationPatchBody = {
@@ -167,7 +166,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return sendJson(res, 400, { error: "Barbeiro invalido." });
       }
 
-      if (!timeSlots.includes(reservationTime as (typeof timeSlots)[number])) {
+      const allowedTimeSlots = getBarberTimeSlots(siteContent, barberName);
+
+      if (!allowedTimeSlots.includes(reservationTime)) {
         return sendJson(res, 400, { error: "Horario invalido." });
       }
 

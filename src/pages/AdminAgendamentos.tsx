@@ -6,7 +6,6 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { adminApi, reservationsApi } from "@/lib/api";
-import { timeSlots } from "@/lib/barbershop";
 import { formatReservationDate } from "@/lib/dates";
 import { buildAdminCancellationEmail, buildAdminRescheduleEmail, hasGoogleEmailScopes, isGoogleAuthError, sendGmailMessage } from "@/lib/google";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -48,6 +47,7 @@ type SiteContentDraft = {
   servicesTitle: string;
   services: SiteEditableService[];
   barbers: string[];
+  barberSchedules: Record<string, string[]>;
   contactEyebrow: string;
   contactTitle: string;
   addressLabel: string;
@@ -159,6 +159,7 @@ const AdminAgendamentos = () => {
 
   const getSiteContentDraft = (): SiteContentDraft | null => siteContentDraft ?? siteContentQuery.data ?? null;
   const siteDraft = getSiteContentDraft();
+  const getBarberScheduleOptions = (barberName: string) => siteDraft?.barberSchedules?.[barberName] ?? [];
 
   const agendaSummary = useMemo(() => {
     const reservations = agendaQuery.data ?? [];
@@ -333,6 +334,21 @@ const AdminAgendamentos = () => {
     }));
   };
 
+  const updateBarberScheduleDraft = (barberName: string, value: string) => {
+    const normalizedSlots = value
+      .split(",")
+      .map((slot) => slot.trim())
+      .filter((slot) => /^\d{2}:\d{2}$/.test(slot));
+
+    updateSiteDraft((draft) => ({
+      ...draft,
+      barberSchedules: {
+        ...draft.barberSchedules,
+        [barberName]: normalizedSlots,
+      },
+    }));
+  };
+
   const handleHeroImageUpload = async (file: File | null) => {
     if (!file) {
       return;
@@ -471,7 +487,7 @@ const AdminAgendamentos = () => {
                                     <div className="grid gap-3 md:grid-cols-3">
                                       <select value={draft.barberName} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, barberName: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{editableBarbers.map((option) => <option key={option} value={option}>{option}</option>)}</select>
                                       <input type="date" value={draft.reservationDate} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationDate: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none" />
-                                      <select value={draft.reservationTime} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationTime: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{timeSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
+                                      <select value={draft.reservationTime} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reservationTime: event.target.value } }))} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none">{getBarberScheduleOptions(draft.barberName).map((slot) => <option key={slot} value={slot}>{slot}</option>)}</select>
                                     </div>
                                     <textarea value={draft.reason} onChange={(event) => setRescheduleInputs((current) => ({ ...current, [reservation.id]: { ...draft, reason: event.target.value } }))} rows={3} placeholder="Justificativa obrigatoria para remarcar este agendamento" className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                                     <button onClick={() => void handleReschedule(reservation)} disabled={rescheduleMutation.isPending} className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm text-foreground hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCcw className="h-4 w-4" /> Remarcar</button>
@@ -795,12 +811,63 @@ const AdminAgendamentos = () => {
                         <div key={`site-barber-${index}`} className="flex flex-col gap-3 rounded-lg border border-border bg-background/60 p-4 sm:flex-row sm:items-end">
                           <div className="flex-1">
                             <label className="mb-2 block text-sm font-medium text-foreground">Nome do barbeiro</label>
-                            <input value={barber} onChange={(event) => updateSiteDraft((draft) => ({ ...draft, barbers: draft.barbers.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))} className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
+                            <input value={barber} onChange={(event) => updateSiteDraft((draft) => {
+                              const nextName = event.target.value;
+                              const nextBarbers = draft.barbers.map((item, itemIndex) => itemIndex === index ? nextName : item);
+                              const currentSchedule = draft.barberSchedules[barber] ?? [];
+                              const nextSchedules = { ...draft.barberSchedules };
+
+                              if (barber !== nextName) {
+                                delete nextSchedules[barber];
+                              }
+
+                              if (nextName) {
+                                nextSchedules[nextName] = currentSchedule;
+                              }
+
+                              return {
+                                ...draft,
+                                barbers: nextBarbers,
+                                barberSchedules: nextSchedules,
+                              };
+                            })} className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none" />
                           </div>
-                          <button onClick={() => updateSiteDraft((draft) => ({ ...draft, barbers: draft.barbers.filter((_, itemIndex) => itemIndex !== index) }))} className="text-sm text-destructive transition-colors hover:text-destructive/80">Remover</button>
+                          <button onClick={() => updateSiteDraft((draft) => {
+                            const nextBarbers = draft.barbers.filter((_, itemIndex) => itemIndex !== index);
+                            const nextSchedules = { ...draft.barberSchedules };
+                            delete nextSchedules[barber];
+                            return { ...draft, barbers: nextBarbers, barberSchedules: nextSchedules };
+                          })} className="text-sm text-destructive transition-colors hover:text-destructive/80">Remover</button>
                         </div>
                       ))}
-                      <button onClick={() => updateSiteDraft((draft) => ({ ...draft, barbers: [...draft.barbers, ""] }))} className="inline-flex items-center justify-center rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40">Adicionar barbeiro</button>
+                      <button onClick={() => updateSiteDraft((draft) => {
+                        const newBarberName = `Novo barbeiro ${draft.barbers.length + 1}`;
+                        return {
+                          ...draft,
+                          barbers: [...draft.barbers, newBarberName],
+                          barberSchedules: {
+                            ...draft.barberSchedules,
+                            [newBarberName]: ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30"],
+                          },
+                        };
+                      })} className="inline-flex items-center justify-center rounded-md border border-border px-4 py-3 text-sm text-foreground hover:border-primary/40">Adicionar barbeiro</button>
+                    </div>
+                    <div className="grid gap-3">
+                      <label className="text-sm font-medium text-foreground">Horarios por colaborador</label>
+                      {siteDraft.barbers.map((barber, index) => (
+                        <div key={`site-barber-schedule-${index}`} className="rounded-lg border border-border bg-background/60 p-4">
+                          <label className="mb-2 block text-sm font-medium text-foreground">{barber || `Barbeiro ${index + 1}`}</label>
+                          <textarea
+                            value={(siteDraft.barberSchedules[barber] ?? []).join(", ")}
+                            onChange={(event) => updateBarberScheduleDraft(barber, event.target.value)}
+                            rows={3}
+                            className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                          />
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Digite os horarios separados por virgula. Exemplo: 09:00, 09:30, 10:00
+                          </p>
+                        </div>
+                      ))}
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-medium text-foreground">Texto do rodape</label>

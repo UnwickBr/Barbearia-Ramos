@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Calendar, CalendarCheck2, Check, Clock, LoaderCircle, Scissors, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { timeSlots } from "@/lib/barbershop";
 import { formatReservationDate } from "@/lib/dates";
 import {
   buildReservationCancellationEmail,
@@ -40,6 +39,10 @@ const Agendamentos = () => {
   const siteContent = siteContentQuery.data as SiteContent | undefined;
   const availableServices = siteContent?.services ?? [];
   const availableBarbers = siteContent?.barbers ?? [];
+  const availableTimeSlots = useMemo(
+    () => (selectedBarber ? siteContent?.barberSchedules?.[selectedBarber] ?? [] : []),
+    [selectedBarber, siteContent?.barberSchedules],
+  );
 
   const getSyncSignature = (reservation: Reservation) =>
     [
@@ -106,6 +109,12 @@ const Agendamentos = () => {
       setSelectedTime(null);
     }
   }, [selectedTime, unavailableTimes]);
+
+  useEffect(() => {
+    if (selectedTime && !availableTimeSlots.includes(selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [availableTimeSlots, selectedTime]);
 
   const ensureGoogleCalendarIntegration = useCallback(async (forceConsent = false, requestIfNeeded = true) => {
     if (googleAccessToken && hasGoogleCalendarScopes() && !forceConsent) {
@@ -768,7 +777,7 @@ const Agendamentos = () => {
             <Clock className="h-5 w-5 text-primary" /> Horario
           </h3>
           <div className="flex flex-wrap gap-2">
-            {timeSlots.map((time) => {
+            {availableTimeSlots.map((time) => {
               const isUnavailable = unavailableTimes.includes(time);
               const isSelected = selectedTime === time;
 

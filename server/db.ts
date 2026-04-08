@@ -126,6 +126,7 @@ export const ensureSchema = async () => {
           services_title TEXT NOT NULL DEFAULT 'Servicos',
           services_json JSONB NOT NULL DEFAULT '[]'::jsonb,
           barbers_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+          barber_hours_json JSONB NOT NULL DEFAULT '{}'::jsonb,
           contact_eyebrow TEXT NOT NULL DEFAULT 'Encontre-nos',
           contact_title TEXT NOT NULL DEFAULT 'Contato',
           address_label TEXT NOT NULL DEFAULT 'Endereco',
@@ -147,6 +148,7 @@ export const ensureSchema = async () => {
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS services_title TEXT NOT NULL DEFAULT 'Servicos'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS services_json JSONB NOT NULL DEFAULT '[]'::jsonb`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS barbers_json JSONB NOT NULL DEFAULT '[]'::jsonb`;
+      await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS barber_hours_json JSONB NOT NULL DEFAULT '{}'::jsonb`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS contact_eyebrow TEXT NOT NULL DEFAULT 'Encontre-nos'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS contact_title TEXT NOT NULL DEFAULT 'Contato'`;
       await sql`ALTER TABLE site_content ADD COLUMN IF NOT EXISTS address_label TEXT NOT NULL DEFAULT 'Endereco'`;
@@ -183,6 +185,15 @@ export const ensureSchema = async () => {
               THEN ${JSON.stringify(["Carlos", "Rafael", "Andre", "Lucas"])}::jsonb
             ELSE barbers_json
           END,
+          barber_hours_json = COALESCE(
+            barber_hours_json,
+            ${JSON.stringify({
+              Carlos: ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"],
+              Rafael: ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"],
+              Andre: ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"],
+              Lucas: ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"]
+            })}::jsonb
+          ),
           social_links_json = COALESCE(social_links_json, '{}'::jsonb)
         WHERE id = 'main'
       `;

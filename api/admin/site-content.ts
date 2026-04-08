@@ -1,7 +1,7 @@
 import { ensureSchema, sql } from "../../server/db.js";
 import { parseJsonBody, sendJson } from "../../server/http.js";
 import { getAuthenticatedUser } from "../../server/user.js";
-import { mapSiteContent, type SiteContentRow, type SiteService } from "../../server/site-content.js";
+import { mapSiteContent, type SiteBarberSchedules, type SiteContentRow, type SiteService } from "../../server/site-content.js";
 import type { ApiRequest, ApiResponse } from "../../server/types.js";
 
 type SiteContentBody = {
@@ -13,6 +13,7 @@ type SiteContentBody = {
   servicesTitle?: string;
   services?: SiteService[];
   barbers?: string[];
+  barberSchedules?: SiteBarberSchedules;
   contactEyebrow?: string;
   contactTitle?: string;
   addressLabel?: string;
@@ -50,6 +51,19 @@ const sanitizeServices = (value: SiteService[] | undefined) => {
 const sanitizeBarbers = (value: string[] | undefined) =>
   (value ?? []).map((barber) => barber.trim()).filter(Boolean);
 
+const sanitizeBarberSchedules = (barbers: string[], value: SiteBarberSchedules | undefined) =>
+  Object.fromEntries(
+    barbers.map((barber) => {
+      const slots = Array.isArray(value?.[barber])
+        ? value[barber]
+            .map((slot) => String(slot).trim())
+            .filter((slot) => /^\d{2}:\d{2}$/.test(slot))
+        : [];
+
+      return [barber, slots];
+    }),
+  );
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   await ensureSchema();
 
@@ -68,6 +82,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   const body = await parseJsonBody<SiteContentBody>(req);
+  const sanitizedBarbers = sanitizeBarbers(body.barbers);
 
   const updatedRows = (await sql`
     UPDATE site_content
@@ -79,7 +94,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       services_eyebrow = ${trimValue(body.servicesEyebrow, "O que fazemos")},
       services_title = ${trimValue(body.servicesTitle, "Servicos")},
       services_json = ${JSON.stringify(sanitizeServices(body.services))}::jsonb,
-      barbers_json = ${JSON.stringify(sanitizeBarbers(body.barbers))}::jsonb,
+      barbers_json = ${JSON.stringify(sanitizedBarbers)}::jsonb,
+      barber_hours_json = ${JSON.stringify(sanitizeBarberSchedules(sanitizedBarbers, body.barberSchedules))}::jsonb,
       contact_eyebrow = ${trimValue(body.contactEyebrow, "Encontre-nos")},
       contact_title = ${trimValue(body.contactTitle, "Contato")},
       address_label = ${trimValue(body.addressLabel, "Endereco")},
@@ -106,6 +122,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       services_title,
       services_json,
       barbers_json,
+      barber_hours_json,
       contact_eyebrow,
       contact_title,
       address_label,

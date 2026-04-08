@@ -71,6 +71,7 @@ export interface SiteContent {
   servicesTitle: string;
   services: SiteEditableService[];
   barbers: string[];
+  barberSchedules: Record<string, string[]>;
   contactEyebrow: string;
   contactTitle: string;
   addressLabel: string;
